@@ -1,10 +1,16 @@
-package org.example.bails
+package org.example.bails.scoreRecorder
 
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import org.example.bails.Ball
+import org.example.bails.BallType
 
-class ScoreboardViewModel: ViewModel() {
+class ScoreRecorderViewModel(
+    private val savedStateHandle: SavedStateHandle
+): ViewModel() {
+
+    private val numberOfOvers = savedStateHandle["numberOfOvers"] ?: 0
 
     var balls = mutableStateOf(0)
     var score = mutableStateOf(0)
@@ -68,3 +74,4 @@ class ScoreboardViewModel: ViewModel() {
         }
     }
 }
+
