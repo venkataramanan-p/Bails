@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,12 +48,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.example.bails.Ball
-import org.example.bails.BallType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScoreRecorderScreen(viewModel: ScoreRecorderViewModel, modifier: Modifier = Modifier) {
+fun ScoreRecorderScreen(
+    state: ScoreRecorderScreenState,
+    undoLastBall: () -> Unit,
+    recordBall: (Ball) -> Unit,
+    onStartNextInnings: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
 
     var showUndoConfirmAlert by rememberSaveable { mutableStateOf(false) }
 
@@ -63,34 +68,74 @@ fun ScoreRecorderScreen(viewModel: ScoreRecorderViewModel, modifier: Modifier = 
                     Text("Bails")
                 },
                 actions = {
-                    IconButton(onClick = {
-                        showUndoConfirmAlert = true
-                    }) {
-                        Icon(Icons.Filled.Refresh, contentDescription = "Reset", modifier = Modifier.scale(-1f, 1f))
+                    if (state is ScoreRecorderScreenState.InningsRunning) {
+                        IconButton(
+                            onClick = { showUndoConfirmAlert = true }
+                        ) {
+                            Icon(
+                                Icons.Filled.Refresh,
+                                contentDescription = "Reset",
+                                modifier = Modifier.scale(-1f, 1f)
+                            )
+                        }
                     }
                 }
             )
         }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            if (showUndoConfirmAlert) {
-                UndoConfirmationAlert(
-                    onUndo = {
-                        viewModel.undoLastBall()
-                        showUndoConfirmAlert = false
-                    },
-                    onCancel = {showUndoConfirmAlert = false}
-                )
-            }
+        if (state is ScoreRecorderScreenState.InningsBreak) {
+            InningsBreak(
+                state.previousInningsSummary,
+                onStartNextInnings
+            )
+        } else if (state is ScoreRecorderScreenState.InningsRunning) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            ) {
+                if (showUndoConfirmAlert) {
+                    UndoConfirmationAlert(
+                        onUndo = {
+                            undoLastBall()
+                            showUndoConfirmAlert = false
+                        },
+                        onCancel = {showUndoConfirmAlert = false}
+                    )
+                }
 
-            ScoreDisplay(score = viewModel.score.value)
-            OversAndWickets(balls = viewModel.balls.value, wickets = viewModel.wickets.value)
-            ScoreRecorder(recordBall = { viewModel.recordBall(it) })
-            BallsHistory(viewModel.allBalls.value)
+                ScoreDisplay(score = state.score)
+                OversAndWickets(balls = state.balls, wickets = state.wickets)
+                ScoreRecorder(recordBall = recordBall)
+                BallsHistory(state.allBalls)
+            }
+        }
+    }
+}
+
+@Composable
+fun InningsBreak(previousInningsSummary: InningsSummary, onStartNextInnings: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Innings Break", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Column(
+            modifier = Modifier.padding(vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                text = "Score: ${previousInningsSummary.score} / ${previousInningsSummary.wickets}",
+                modifier = Modifier.padding(8.dp)
+            )
+            Text(
+                text = "Overs: ${previousInningsSummary.overs}",
+                modifier = Modifier.padding(8.dp)
+            )
+        }
+        Button(onClick = onStartNextInnings) {
+            Text("Start Next innings")
         }
     }
 }

@@ -1,10 +1,10 @@
 package org.example.bails.scoreRecorder
 
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import org.example.bails.Ball
-import org.example.bails.BallType
 
 class ScoreRecorderViewModel(
     private val savedStateHandle: SavedStateHandle
@@ -12,66 +12,103 @@ class ScoreRecorderViewModel(
 
     private val numberOfOvers = savedStateHandle["numberOfOvers"] ?: 0
 
-    var balls = mutableStateOf(0)
-    var score = mutableStateOf(0)
-    var wickets = mutableStateOf(0)
-    var allBalls = mutableStateOf<List<Ball>>(emptyList())
-
-    fun increaseBall() {
-        balls.value++
-    }
-
-    fun addScore(score: Int) {
-        this.score.value += score
-    }
-
-    fun addWicket(wicket: Int) {
-        wickets.value += wicket
-    }
+    var state: ScoreRecorderScreenState by mutableStateOf(
+        ScoreRecorderScreenState.InningsRunning(
+            balls = 0,
+            score = 0,
+            wickets = 0,
+            allBalls = emptyList(),
+            totalOvers = numberOfOvers
+        )
+    )
 
     fun recordBall(ball: Ball) {
         when(ball.ballType) {
             BallType.DOT_BALL -> {
-                increaseBall()
+                state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                    balls = (state as ScoreRecorderScreenState.InningsRunning).balls + 1,
+                    allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball
+                )
             }
             BallType.CORRECT_BALL -> {
-                increaseBall()
-                addScore(ball.score)
+                state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                    score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score,
+                    balls = (state as ScoreRecorderScreenState.InningsRunning).balls + 1,
+                    allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball
+                )
             }
             BallType.WICKET -> {
-                addWicket(1)
-                addScore(ball.score)
-                increaseBall()
+                state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                    wickets = (state as ScoreRecorderScreenState.InningsRunning).wickets + 1,
+                    score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score,
+                    balls = (state as ScoreRecorderScreenState.InningsRunning).balls + 1,
+                    allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball
+                )
             }
             BallType.WIDE, BallType.NO_BALL -> {
-                addScore(1 + ball.score)
+                state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                    score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score,
+                    allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball
+                )
             }
         }
-        allBalls.value += ball
+        if ((state as ScoreRecorderScreenState.InningsRunning).balls == (state as ScoreRecorderScreenState.InningsRunning).totalOvers * 6) {
+            state = ScoreRecorderScreenState.InningsBreak(
+                previousInningsSummary = InningsSummary(
+                    score = (state as ScoreRecorderScreenState.InningsRunning).score,
+                    wickets = (state as ScoreRecorderScreenState.InningsRunning).wickets,
+                    overs = (state as ScoreRecorderScreenState.InningsRunning).balls / 6f,
+                    allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls
+                )
+            )
+        }
     }
 
     fun undoLastBall() {
-        if(allBalls.value.isNotEmpty()) {
-            val lastBall = allBalls.value.last()
+        if((state as ScoreRecorderScreenState.InningsRunning).allBalls.isNotEmpty()) {
+            val lastBall = (state as ScoreRecorderScreenState.InningsRunning).allBalls.last()
             when(lastBall.ballType) {
                 BallType.DOT_BALL -> {
-                    balls.value--
+                    state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                        balls = (state as ScoreRecorderScreenState.InningsRunning).balls - 1,
+                        allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls.dropLast(1)
+                    )
                 }
                 BallType.CORRECT_BALL -> {
-                    balls.value--
-                    score.value -= lastBall.score
+                    state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                        balls = (state as ScoreRecorderScreenState.InningsRunning).balls - 1,
+                        score = (state as ScoreRecorderScreenState.InningsRunning).score - lastBall.score,
+                        allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls.dropLast(1)
+                    )
                 }
                 BallType.WICKET -> {
-                    wickets.value--
-                    score.value -= lastBall.score
-                    balls.value--
+                    state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                        balls = (state as ScoreRecorderScreenState.InningsRunning).balls - 1,
+                        wickets = (state as ScoreRecorderScreenState.InningsRunning).wickets - 1,
+                        score = (state as ScoreRecorderScreenState.InningsRunning).score - lastBall.score,
+                        allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls.dropLast(1)
+                    )
                 }
                 BallType.WIDE, BallType.NO_BALL -> {
-                    score.value -= 1 + lastBall.score
+                    state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                        score = (state as ScoreRecorderScreenState.InningsRunning).score - 1 - lastBall.score,
+                        allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls.dropLast(1)
+                    )
                 }
             }
-            allBalls.value = allBalls.value.dropLast(1)
+            state = (state as ScoreRecorderScreenState.InningsRunning).copy()
         }
+    }
+
+    fun startNextInnings() {
+        state = ScoreRecorderScreenState.InningsRunning(
+            balls = 0,
+            score = 0,
+            wickets = 0,
+            allBalls = emptyList(),
+            totalOvers = numberOfOvers,
+            previousInningsSummary = (state as ScoreRecorderScreenState.InningsBreak).previousInningsSummary
+        )
     }
 }
 

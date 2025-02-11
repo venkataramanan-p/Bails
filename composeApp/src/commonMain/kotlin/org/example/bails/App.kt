@@ -10,18 +10,6 @@ import org.example.bails.matchConfig.MatchConfigScreen
 import org.example.bails.scoreRecorder.ScoreRecorderScreen
 import org.example.bails.scoreRecorder.ScoreRecorderViewModel
 
-enum class BallType(val displayStr: String) {
-    CORRECT_BALL("Correct Ball"),
-    WIDE("Wide"),
-    NO_BALL("No Ball"),
-    DOT_BALL("Dot ball"),
-    WICKET("Wicket")
-}
-
-data class Ball(
-    val ballType: BallType,
-    val score: Int = 0
-)
 
 sealed interface BailsScreens {
     @Serializable
@@ -46,7 +34,12 @@ fun App() {
         composable<BailsScreens.ScoreRecorder> {
             val viewmodel: ScoreRecorderViewModel = viewModel()
 
-            ScoreRecorderScreen(viewmodel)
+            ScoreRecorderScreen(
+                state = viewmodel.state,
+                undoLastBall = viewmodel::undoLastBall,
+                recordBall = viewmodel::recordBall,
+                onStartNextInnings = viewmodel::startNextInnings
+            )
         }
     }
 }
