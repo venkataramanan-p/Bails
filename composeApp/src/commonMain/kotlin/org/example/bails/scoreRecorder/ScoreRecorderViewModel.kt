@@ -47,7 +47,7 @@ class ScoreRecorderViewModel(
             }
             BallType.WIDE, BallType.NO_BALL -> {
                 state = (state as ScoreRecorderScreenState.InningsRunning).copy(
-                    score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score,
+                    score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score + 1,
                     allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball
                 )
             }

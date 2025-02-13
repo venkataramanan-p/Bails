@@ -38,7 +38,8 @@ fun App() {
                 state = viewmodel.state,
                 undoLastBall = viewmodel::undoLastBall,
                 recordBall = viewmodel::recordBall,
-                onStartNextInnings = viewmodel::startNextInnings
+                onStartNextInnings = viewmodel::startNextInnings,
+                goBack = navController::navigateUp
             )
         }
     }

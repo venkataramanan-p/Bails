@@ -56,10 +56,13 @@ fun ScoreRecorderScreen(
     undoLastBall: () -> Unit,
     recordBall: (Ball) -> Unit,
     onStartNextInnings: () -> Unit,
+    goBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // todo: interrupt back press and show confirmation dialog
 
     var showUndoConfirmAlert by rememberSaveable { mutableStateOf(false) }
+    var showConfirmBackPressAlert by rememberSaveable { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -83,6 +86,14 @@ fun ScoreRecorderScreen(
             )
         }
     ) { padding ->
+
+        if (showConfirmBackPressAlert) {
+            ConfirmBackPressAlert(
+                onCancel = {},
+                onConfirm = { goBack() }
+            )
+        }
+
         if (state is ScoreRecorderScreenState.InningsBreak) {
             InningsBreak(
                 state.previousInningsSummary,
@@ -378,6 +389,30 @@ fun UndoConfirmationAlert(modifier: Modifier = Modifier, onCancel: () -> Unit, o
         dismissButton = {
             TextButton(onClick = onCancel) {
                 Text("No")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConfirmBackPressAlert(modifier: Modifier = Modifier, onCancel: () -> Unit, onConfirm: () -> Unit) {
+    AlertDialog(
+        title = {
+            Text("Confirm Back?")
+        },
+        text = {
+            Text("Are you sure to go back? Your progress will be lost permanently.")
+        },
+        onDismissRequest = onCancel,
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Go Back")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text("Stay here")
             }
         }
     )
