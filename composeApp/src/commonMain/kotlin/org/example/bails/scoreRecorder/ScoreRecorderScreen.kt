@@ -13,15 +13,18 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -116,9 +119,61 @@ fun ScoreRecorderScreen(
                 }
 
                 ScoreDisplay(score = state.score)
+                Players(
+                    player1 = state.batter1,
+                    player2 = state.batter2
+                )
                 OversAndWickets(balls = state.balls, wickets = state.wickets)
                 ScoreRecorder(recordBall = recordBall)
                 BallsHistory(state.allBalls)
+            }
+        }
+    }
+}
+
+data class Player(
+    val displayName: String,
+    val score: Int,
+    val isBatting: Boolean = false,
+    val ballsFaced: Int = 0
+)
+
+@Composable
+fun Players(modifier: Modifier = Modifier, player1: Player?, player2: Player?) {
+    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
+        player1?.let {
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row {
+                    Text(player1.displayName)
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "Edit",
+                        tint = Color.Gray,
+                        modifier = Modifier
+                            .clickable {  }
+                            .padding(horizontal = 4.dp)
+                            .size(16.dp)
+                    )
+                }
+                Text(player1.score.toString())
+            }
+        }
+        player2?.let {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Row {
+                    Text(player2.displayName)
+                    Icon(
+                        Icons.Filled.Edit,
+                        contentDescription = "Edit",
+                        tint = Color.Gray,
+                        modifier = Modifier
+                            .clickable {  }
+                            .padding(horizontal = 4.dp)
+                            .size(16.dp)
+                    )
+                }
+
+                Text(player2.score.toString())
             }
         }
     }

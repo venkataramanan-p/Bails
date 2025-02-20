@@ -7,8 +7,14 @@ sealed interface ScoreRecorderScreenState {
         val wickets: Int,
         val allBalls: List<Ball>,
         val totalOvers: Int,
-        val previousInningsSummary: InningsSummary? = null
-    ): ScoreRecorderScreenState
+        val previousInningsSummary: InningsSummary? = null,
+        val batter1: Player? = null,
+        val batter2: Player? = null
+    ): ScoreRecorderScreenState {
+        fun something() {
+
+        }
+    }
     data class InningsBreak(
         val previousInningsSummary: InningsSummary
     ): ScoreRecorderScreenState
