@@ -6,13 +6,15 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
 
 class ScoreRecorderViewModel(
     private val savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
     private val numberOfOvers = savedStateHandle["numberOfOvers"] ?: 0
+    private val strikerName = savedStateHandle["strikerName"] ?: ""
+    private val nonStrikerName = savedStateHandle["nonStrikerName"] ?: ""
+    private val bowlerName = savedStateHandle["bowlerName"] ?: ""
 
     var state: ScoreRecorderScreenState by mutableStateOf(
         ScoreRecorderScreenState.InningsRunning(
@@ -21,15 +23,16 @@ class ScoreRecorderViewModel(
             wickets = 0,
             allBalls = emptyList(),
             totalOvers = numberOfOvers,
-            batter1 = Player("Unknown player 1", score = 0, isBatting = true),
-            batter2 = Player("Unknown player 2", score = 0, isBatting = false)
+            currentStriker = Player(strikerName, score = 0, isBatting = true),
+            currentNonStriker = Player(nonStrikerName, score = 0, isBatting = false),
+            bowlerName = Bowler(bowlerName)
         )
     )
 
     fun recordBall(ball: Ball) {
 
-        val batter1 = (state as ScoreRecorderScreenState.InningsRunning).batter1
-        val batter2 = (state as ScoreRecorderScreenState.InningsRunning).batter2
+        val batter1 = (state as ScoreRecorderScreenState.InningsRunning).currentStriker
+        val batter2 = (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker
         val isStrikeChanged = ball.score % 2 == 1
 
         when(ball.ballType) {
@@ -37,8 +40,8 @@ class ScoreRecorderViewModel(
                 state = (state as ScoreRecorderScreenState.InningsRunning).copy(
                     balls = (state as ScoreRecorderScreenState.InningsRunning).balls + 1,
                     allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball,
-                    batter1 = if (batter1?.isBatting == true) batter1.copy(ballsFaced = batter1.ballsFaced + 1) else batter1,
-                    batter2 = if (batter2?.isBatting == true) batter2.copy(ballsFaced = batter2.ballsFaced + 1) else batter2
+                    currentStriker = if (batter1?.isBatting == true) batter1.copy(ballsFaced = batter1.ballsFaced + 1) else batter1,
+                    currentNonStriker = if (batter2?.isBatting == true) batter2.copy(ballsFaced = batter2.ballsFaced + 1) else batter2
                 )
 
             }
@@ -48,8 +51,8 @@ class ScoreRecorderViewModel(
                     score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score,
                     balls = (state as ScoreRecorderScreenState.InningsRunning).balls + 1,
                     allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball,
-                    batter1 = if (batter1?.isBatting == true) batter1.copy(score = batter1.score + ball.score, ballsFaced = batter1.ballsFaced + 1, isBatting = if (isStrikeChanged) !batter1.isBatting else batter1.isBatting) else batter1?.copy(isBatting = if (isStrikeChanged) !batter1.isBatting else batter1.isBatting),
-                    batter2 = if (batter2?.isBatting == true) batter2.copy(ballsFaced = batter2.ballsFaced + 1, score = batter2.score + ball.score, isBatting = if (isStrikeChanged) !batter2.isBatting else batter2.isBatting) else batter2?.copy(isBatting = if (isStrikeChanged) !batter2.isBatting else batter2.isBatting)
+                    currentStriker = if (batter1?.isBatting == true) batter1.copy(score = batter1.score + ball.score, ballsFaced = batter1.ballsFaced + 1, isBatting = if (isStrikeChanged) !batter1.isBatting else batter1.isBatting) else batter1?.copy(isBatting = if (isStrikeChanged) !batter1.isBatting else batter1.isBatting),
+                    currentNonStriker = if (batter2?.isBatting == true) batter2.copy(ballsFaced = batter2.ballsFaced + 1, score = batter2.score + ball.score, isBatting = if (isStrikeChanged) !batter2.isBatting else batter2.isBatting) else batter2?.copy(isBatting = if (isStrikeChanged) !batter2.isBatting else batter2.isBatting)
                 )
             }
             BallType.WICKET -> {
@@ -58,16 +61,16 @@ class ScoreRecorderViewModel(
                     score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score,
                     balls = (state as ScoreRecorderScreenState.InningsRunning).balls + 1,
                     allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball,
-                    batter1 = if (batter1?.isBatting == true) Player(displayName = "Unknown player 1", score = 0, ballsFaced = 0, isBatting = true) else batter1,
-                    batter2 = if (batter2?.isBatting == true) Player(displayName = "Unknown player 1", score = 0, ballsFaced = 0, isBatting = true) else batter2
+                    currentStriker = if (batter1?.isBatting == true) Player(displayName = "Unknown player 1", score = 0, ballsFaced = 0, isBatting = true) else batter1,
+                    currentNonStriker = if (batter2?.isBatting == true) Player(displayName = "Unknown player 1", score = 0, ballsFaced = 0, isBatting = true) else batter2
                 )
             }
             BallType.WIDE, BallType.NO_BALL -> {
                 state = (state as ScoreRecorderScreenState.InningsRunning).copy(
                     score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score + 1,
                     allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball,
-                    batter1 = if (batter1?.isBatting == true) batter1.copy(score = batter1.score + ball.score, ballsFaced = batter1.ballsFaced) else batter1,
-                    batter2 = if (batter2?.isBatting == true) batter2.copy(score = batter2.score + ball.score, ballsFaced = batter2.ballsFaced) else batter2
+                    currentStriker = if (batter1?.isBatting == true) batter1.copy(score = batter1.score + ball.score, ballsFaced = batter1.ballsFaced) else batter1,
+                    currentNonStriker = if (batter2?.isBatting == true) batter2.copy(score = batter2.score + ball.score, ballsFaced = batter2.ballsFaced) else batter2
                 )
             }
         }
@@ -132,17 +135,17 @@ class ScoreRecorderViewModel(
     }
 }
 
-@OptIn(ExperimentalContracts::class)
-inline fun <T> Collection<T>?.isNullOrEmpty(): Boolean {
-    contract {
-        returns(false) implies (this@isNullOrEmpty != null)
-    }
-
-    return this == null || this.isEmpty()
-}
+//@OptIn(ExperimentalContracts::class)
+//inline fun <T> Collection<T>?.isNullOrEmpty(): Boolean {
+//    contract {
+//        returns(false) implies (this@isNullOrEmpty != null)
+//    }
+//
+//    return this == null || this.isEmpty()
+//}
 
 fun printEachLine() {
-    val list: MutableList<String>? = mutableListOf()
+    var list: MutableList<String>? = mutableListOf()
     if (!list.isNullOrEmpty()) {
         for (e in list) { //list smart-casted to List<String>
             println(e)
@@ -156,9 +159,9 @@ fun printEachLine() {
 //
 @OptIn(ExperimentalContracts::class)
 fun ScoreRecorderScreenState?.isInningsRunning(): Boolean {
-    contract {
-        returns(true) implies (this@isInningsRunning is ScoreRecorderScreenState.InningsRunning)
-    }
+//    contract {
+//        returns(true) implies (this@isInningsRunning is ScoreRecorderScreenState.InningsRunning)
+//    }
 
     return this is ScoreRecorderScreenState.InningsRunning
 }

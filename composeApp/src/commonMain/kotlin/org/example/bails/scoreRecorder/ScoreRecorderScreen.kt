@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +22,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
@@ -32,10 +32,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,8 +50,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -66,6 +74,9 @@ fun ScoreRecorderScreen(
 
     var showUndoConfirmAlert by rememberSaveable { mutableStateOf(false) }
     var showConfirmBackPressAlert by rememberSaveable { mutableStateOf(false) }
+    var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
+    var currentBall: Ball? by rememberSaveable { mutableStateOf(null) }
 
     Scaffold(
         topBar = {
@@ -89,6 +100,18 @@ fun ScoreRecorderScreen(
             )
         }
     ) { padding ->
+
+        if (showEnterPlayerNameBottomSheet) {
+            EnterPlayerNameBottomSheet(
+                sheetState = enterPlayerNameBottomSheetState,
+                playerName = "",
+                onSetPlayerName = {
+                    currentBall?.let { recordBall(it) }
+                    showEnterPlayerNameBottomSheet = false
+                },
+                onDismiss = { showEnterPlayerNameBottomSheet = false }
+            )
+        }
 
         if (showConfirmBackPressAlert) {
             ConfirmBackPressAlert(
@@ -120,12 +143,60 @@ fun ScoreRecorderScreen(
 
                 ScoreDisplay(score = state.score)
                 Players(
-                    player1 = state.batter1,
-                    player2 = state.batter2
+                    player1 = state.currentStriker,
+                    player2 = state.currentNonStriker
                 )
                 OversAndWickets(balls = state.balls, wickets = state.wickets)
-                ScoreRecorder(recordBall = recordBall)
+                ScoreRecorder(
+                    recordBall = { ball ->
+                        if (ball.ballType == BallType.WICKET) {
+                            currentBall = ball
+                            showEnterPlayerNameBottomSheet = true
+                        } else {
+                            recordBall(ball)
+                        }
+                    }
+                )
                 BallsHistory(state.allBalls)
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EnterPlayerNameBottomSheet(sheetState: SheetState, playerName: String, onSetPlayerName: (String) -> Unit, onDismiss: () -> Unit) {
+    val focusRequester = FocusRequester()
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        dragHandle = {},
+        shape = RectangleShape
+    ) {
+        var playerName by rememberSaveable { mutableStateOf(playerName) }
+
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = playerName,
+                onValueChange = { newValue ->
+                    playerName = newValue
+                },
+                placeholder = {
+                    Text("Enter player name here...")
+                },
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                singleLine = true,
+                modifier = Modifier
+                    .padding(4.dp)
+                    .weight(1f)
+                    .focusRequester(focusRequester)
+            )
+            Button(onClick = { onSetPlayerName(playerName) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+                Text("Set")
             }
         }
     }
@@ -135,7 +206,10 @@ data class Player(
     val displayName: String,
     val score: Int,
     val isBatting: Boolean = false,
-    val ballsFaced: Int = 0
+    val ballsFaced: Int = 0,
+    val numberOfFours: Int = 0,
+    val numberOfSixes: Int = 0,
+    val strikerRate: Float = 0.0f
 )
 
 @Composable

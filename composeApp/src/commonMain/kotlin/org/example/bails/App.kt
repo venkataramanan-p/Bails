@@ -15,7 +15,12 @@ sealed interface BailsScreens {
     @Serializable
     data object MatchConfig : BailsScreens
     @Serializable
-    data class ScoreRecorder(val numberOfOvers: Int) : BailsScreens
+    data class ScoreRecorder(
+        val numberOfOvers: Int,
+        val strikerName: String,
+        val nonStrikerName: String,
+        val bowlerName: String
+    ) : BailsScreens
 }
 
 @Composable
@@ -25,8 +30,13 @@ fun App() {
     NavHost(navController = navController, startDestination = BailsScreens.MatchConfig::class) {
         composable<BailsScreens.MatchConfig> {
             MatchConfigScreen(
-                onStartMatch = { numberOfOvers ->
-                    navController.navigate(BailsScreens.ScoreRecorder(numberOfOvers = numberOfOvers))
+                onStartMatch = { numberOfOvers, strikerName, nonStrikerName, bowlerName ->
+                    navController.navigate(BailsScreens.ScoreRecorder(
+                        numberOfOvers = numberOfOvers,
+                        strikerName = strikerName,
+                        nonStrikerName = nonStrikerName,
+                        bowlerName = bowlerName
+                    ))
                 }
             )
         }

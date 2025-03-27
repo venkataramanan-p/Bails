@@ -1,6 +1,7 @@
 package org.example.bails.scoreRecorder
 
 sealed interface ScoreRecorderScreenState {
+
     data class InningsRunning(
         val balls: Int,
         val score: Int,
@@ -8,17 +9,19 @@ sealed interface ScoreRecorderScreenState {
         val allBalls: List<Ball>,
         val totalOvers: Int,
         val previousInningsSummary: InningsSummary? = null,
-        val batter1: Player? = null,
-        val batter2: Player? = null
-    ): ScoreRecorderScreenState {
-        fun something() {
+        val currentStriker: Player? = null,
+        val currentNonStriker: Player? = null,
+        val bowlerName: Bowler? = null
+    ): ScoreRecorderScreenState
 
-        }
-    }
     data class InningsBreak(
         val previousInningsSummary: InningsSummary
     ): ScoreRecorderScreenState
 }
+
+data class Bowler(
+    val name: String
+)
 
 data class InningsSummary(
     val score: Int,
@@ -37,5 +40,8 @@ enum class BallType(val displayStr: String) {
 
 data class Ball(
     val ballType: BallType,
-    val score: Int = 0
+    val score: Int = 0,
+    val strikerName: String = "",
+    val nonStrikerName: String = "",
+    val bowlerName: String = ""
 )
