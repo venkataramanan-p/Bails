@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
@@ -17,16 +16,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun MatchConfigScreen(
@@ -45,58 +40,93 @@ fun MatchConfigScreen(
             focusRequester.requestFocus()
         }
 
-        Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = CenterHorizontally) {
-                Text("Enter the number of overs ", modifier = Modifier.padding(bottom = 12.dp))
-                OutlinedTextField(
-                    value = numberOfOvers ?: "",
-                    onValueChange = { newText ->
-                        val number = newText.toIntOrNull()
-                        if (number == null && newText.isNotEmpty()) return@OutlinedTextField  // Ignore non-numeric input
-                        if (number == null || (number in 0..20)) numberOfOvers = newText  // Update only if within range
-                    },
-                    keyboardOptions = KeyboardOptions.Default.copy(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number, imeAction = ImeAction.Next),
-                    singleLine = true,
-                    textStyle = TextStyle(textAlign = TextAlign.Center, fontSize = 20.sp),
-                    modifier = Modifier
-                        .width(100.dp)
-                        .focusRequester(focusRequester)
-                )
-                Text("Enter the striker batsman name: ")
-                OutlinedTextField(
-                    value = strikerName,
-                    onValueChange = { strikerName = it },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                )
-                Text("Enter the Non-striker batsman name: ")
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { nonStrikerName = it },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                )
-                Text("Enter the bowler name: ")
-                OutlinedTextField(
-                    value = "",
-                    onValueChange = { bowlerName = it },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                )
-                Button(
-                    onClick = { onStartMatch(numberOfOvers?.toIntOrNull() ?: 0) },
-                    enabled = numberOfOvers?.toIntOrNull() != null && numberOfOvers!!.toIntOrNull()!! > 0,
-                    modifier = Modifier.padding(top = 20.dp)
-                ) {
-                    Text("Start")
-                }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(12.dp)
+        ) {
+            NumberFormField(
+                title = "Number of overs",
+                value = numberOfOvers ?: "",
+                onValueChange = { newText ->
+                    val number = newText.toIntOrNull()
+                    if (number == null && newText.isNotEmpty()) return@NumberFormField  // Ignore non-numeric input
+                    if (number == null || (number in 0..20)) numberOfOvers = newText  // Update only if within range
+                },
+                focusRequester = focusRequester,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            TextFormField(
+                title = "Enter the striker batsman name: ",
+                value = strikerName,
+                onValueChange = { strikerName = it },
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            TextFormField(
+                title = "Enter the Non-striker batsman name: ",
+                value = nonStrikerName,
+                onValueChange = { nonStrikerName = it },
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+            TextFormField(
+                title = "Enter the bowler name: ",
+                value = bowlerName,
+                onValueChange = { bowlerName = it },
+                modifier = Modifier.padding(vertical = 8.dp),
+                imeAction = ImeAction.Go
+            )
+            Button(
+                onClick = { onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, strikerName, nonStrikerName, bowlerName) },
+                enabled = numberOfOvers?.toIntOrNull() != null && numberOfOvers!!.toIntOrNull()!! > 0,
+                modifier = Modifier.padding(top = 20.dp)
+            ) {
+                Text("Start")
             }
         }
+    }
+}
+
+@Composable
+fun TextFormField(
+    title: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    imeAction: ImeAction = ImeAction.Next
+) {
+    Column(modifier = modifier) {
+        Text(title, modifier = Modifier.padding(bottom = 4.dp))
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            keyboardOptions = KeyboardOptions(imeAction = imeAction),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+fun NumberFormField(
+    title: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    focusRequester: FocusRequester,
+    modifier: Modifier = Modifier,
+    imeAction: ImeAction = ImeAction.Next
+) {
+    Column(modifier = modifier) {
+        Text(title, modifier = Modifier.padding(bottom = 4.dp))
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number, imeAction = imeAction),
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester = focusRequester)
+        )
     }
 }
