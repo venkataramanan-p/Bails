@@ -5,6 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActionScope
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
@@ -19,7 +21,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
@@ -46,6 +50,8 @@ fun MatchConfigScreen(
                 .padding(padding)
                 .padding(12.dp)
         ) {
+            val keyboardController = LocalSoftwareKeyboardController.current
+
             NumberFormField(
                 title = "Number of overs",
                 value = numberOfOvers ?: "",
@@ -74,7 +80,11 @@ fun MatchConfigScreen(
                 value = bowlerName,
                 onValueChange = { bowlerName = it },
                 modifier = Modifier.padding(vertical = 8.dp),
-                imeAction = ImeAction.Go
+                imeAction = ImeAction.Go,
+                onGo = {
+                    keyboardController?.hide()
+                    onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, strikerName, nonStrikerName, bowlerName)
+                },
             )
             Button(
                 onClick = { onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, strikerName, nonStrikerName, bowlerName) },
@@ -93,15 +103,17 @@ fun TextFormField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    imeAction: ImeAction = ImeAction.Next
+    imeAction: ImeAction = ImeAction.Next,
+    onGo: KeyboardActionScope.() -> Unit = {},
 ) {
     Column(modifier = modifier) {
         Text(title, modifier = Modifier.padding(bottom = 4.dp))
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            keyboardOptions = KeyboardOptions(imeAction = imeAction),
+            keyboardOptions = KeyboardOptions(imeAction = imeAction, capitalization = KeyboardCapitalization.Words),
             singleLine = true,
+            keyboardActions = KeyboardActions(onGo = onGo),
             modifier = Modifier
                 .fillMaxWidth(),
         )
@@ -115,7 +127,7 @@ fun NumberFormField(
     onValueChange: (String) -> Unit,
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
-    imeAction: ImeAction = ImeAction.Next
+    imeAction: ImeAction = ImeAction.Next,
 ) {
     Column(modifier = modifier) {
         Text(title, modifier = Modifier.padding(bottom = 4.dp))

@@ -22,13 +22,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +47,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -56,9 +60,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,6 +82,8 @@ fun ScoreRecorderScreen(
     var showConfirmBackPressAlert by rememberSaveable { mutableStateOf(false) }
     var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
     var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
+    var showSelectOutPlayerSheet by rememberSaveable { mutableStateOf(false) }
+    var selectOutPlayerBottomSheetState = rememberModalBottomSheetState()
     var currentBall: Ball? by rememberSaveable { mutableStateOf(null) }
 
     Scaffold(
@@ -101,6 +109,8 @@ fun ScoreRecorderScreen(
         }
     ) { padding ->
 
+        val coroutineScope = rememberCoroutineScope()
+
         if (showEnterPlayerNameBottomSheet) {
             EnterPlayerNameBottomSheet(
                 sheetState = enterPlayerNameBottomSheetState,
@@ -118,6 +128,25 @@ fun ScoreRecorderScreen(
                 onCancel = {},
                 onConfirm = { goBack() }
             )
+        }
+
+        if (showSelectOutPlayerSheet) {
+            if (state is ScoreRecorderScreenState.InningsRunning) {
+                SelectOutPlayerName(
+                    bottomSheetState = selectOutPlayerBottomSheetState,
+                    player1Name = state.currentStriker?.displayName ?: "",
+                    player2Name = state.currentNonStriker?.displayName ?: "",
+                    onDismissRequest = { showSelectOutPlayerSheet = false },
+                    onSelected = {
+                        coroutineScope.launch {
+                            selectOutPlayerBottomSheetState.hide()
+                        }.invokeOnCompletion {
+                            showSelectOutPlayerSheet = false
+                            showEnterPlayerNameBottomSheet = true
+                        }
+                    }
+                )
+            }
         }
 
         if (state is ScoreRecorderScreenState.InningsBreak) {
@@ -150,8 +179,9 @@ fun ScoreRecorderScreen(
                 ScoreRecorder(
                     recordBall = { ball ->
                         if (ball.ballType == BallType.WICKET) {
-                            currentBall = ball
-                            showEnterPlayerNameBottomSheet = true
+                            showSelectOutPlayerSheet = true
+//                            currentBall = ball
+//                            showEnterPlayerNameBottomSheet = true
                         } else {
                             recordBall(ball)
                         }
@@ -182,20 +212,23 @@ fun EnterPlayerNameBottomSheet(sheetState: SheetState, playerName: String, onSet
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(
                 value = playerName,
-                onValueChange = { newValue ->
-                    playerName = newValue
-                },
-                placeholder = {
-                    Text("Enter player name here...")
-                },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                onValueChange = { newValue -> playerName = newValue },
+                placeholder = { Text("Enter player name here...") },
                 singleLine = true,
+                keyboardActions = KeyboardActions(onGo = { onSetPlayerName(playerName) }),
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Go,
+                    capitalization = KeyboardCapitalization.Words
+                ),
                 modifier = Modifier
                     .padding(4.dp)
                     .weight(1f)
                     .focusRequester(focusRequester)
             )
-            Button(onClick = { onSetPlayerName(playerName) }, modifier = Modifier.padding(horizontal = 8.dp)) {
+            Button(
+                onClick = { onSetPlayerName(playerName) },
+                modifier = Modifier.padding(horizontal = 8.dp)
+            ) {
                 Text("Set")
             }
         }
@@ -470,6 +503,53 @@ fun ScoreRecorder(recordBall: (Ball) -> Unit, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectOutPlayerName(
+    bottomSheetState: SheetState,
+    player1Name: String,
+    player2Name: String,
+    onDismissRequest: () -> Unit,
+    onSelected: (playerName: String) -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismissRequest, sheetState = bottomSheetState) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+        ) {
+            Text(
+                text = "Who got out?",
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Column(
+                modifier = Modifier
+                    .border(
+                        width = 1.dp,
+                        color = DividerDefaults.color,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+            ) {
+                SelectOutPlayerNameText(name = player1Name, onSelected = { onSelected(player1Name) })
+                HorizontalDivider()
+                SelectOutPlayerNameText(name = player2Name, onSelected = { onSelected(player2Name) })
+            }
+        }
+    }
+}
+
+@Composable
+fun SelectOutPlayerNameText(name: String, onSelected: () -> Unit) {
+    Text(
+        text = name,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onSelected() }
+            .padding(16.dp)
+    )
 }
 
 @Composable
