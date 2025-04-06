@@ -53,6 +53,7 @@ kotlin {
             implementation(libs.androidx.lifecycle.viewmodel.compose)
             implementation(libs.androidx.navigation.compose)
             implementation(libs.kotlin.serialization)
+            implementation(libs.kotlinx.datetime)
 
             // room
             implementation(libs.room.runtime)

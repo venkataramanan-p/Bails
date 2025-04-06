@@ -80,10 +80,6 @@ fun ScoreRecorderScreen(
 
     var showUndoConfirmAlert by rememberSaveable { mutableStateOf(false) }
     var showConfirmBackPressAlert by rememberSaveable { mutableStateOf(false) }
-    var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
-    var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
-    var showSelectOutPlayerSheet by rememberSaveable { mutableStateOf(false) }
-    var selectOutPlayerBottomSheetState = rememberModalBottomSheetState()
     var currentBall: Ball? by rememberSaveable { mutableStateOf(null) }
 
     Scaffold(
@@ -109,20 +105,6 @@ fun ScoreRecorderScreen(
         }
     ) { padding ->
 
-        val coroutineScope = rememberCoroutineScope()
-
-        if (showEnterPlayerNameBottomSheet) {
-            EnterPlayerNameBottomSheet(
-                sheetState = enterPlayerNameBottomSheetState,
-                playerName = "",
-                onSetPlayerName = {
-                    currentBall?.let { recordBall(it) }
-                    showEnterPlayerNameBottomSheet = false
-                },
-                onDismiss = { showEnterPlayerNameBottomSheet = false }
-            )
-        }
-
         if (showConfirmBackPressAlert) {
             ConfirmBackPressAlert(
                 onCancel = {},
@@ -130,24 +112,7 @@ fun ScoreRecorderScreen(
             )
         }
 
-        if (showSelectOutPlayerSheet) {
-            if (state is ScoreRecorderScreenState.InningsRunning) {
-                SelectOutPlayerName(
-                    bottomSheetState = selectOutPlayerBottomSheetState,
-                    player1Name = state.currentStriker?.displayName ?: "",
-                    player2Name = state.currentNonStriker?.displayName ?: "",
-                    onDismissRequest = { showSelectOutPlayerSheet = false },
-                    onSelected = {
-                        coroutineScope.launch {
-                            selectOutPlayerBottomSheetState.hide()
-                        }.invokeOnCompletion {
-                            showSelectOutPlayerSheet = false
-                            showEnterPlayerNameBottomSheet = true
-                        }
-                    }
-                )
-            }
-        }
+
 
         if (state is ScoreRecorderScreenState.InningsBreak) {
             InningsBreak(
@@ -171,21 +136,15 @@ fun ScoreRecorderScreen(
                 }
 
                 ScoreDisplay(score = state.score)
-                Players(
+                Batters(
                     player1 = state.currentStriker,
                     player2 = state.currentNonStriker
                 )
                 OversAndWickets(balls = state.balls, wickets = state.wickets)
                 ScoreRecorder(
-                    recordBall = { ball ->
-                        if (ball.ballType == BallType.WICKET) {
-                            showSelectOutPlayerSheet = true
-//                            currentBall = ball
-//                            showEnterPlayerNameBottomSheet = true
-                        } else {
-                            recordBall(ball)
-                        }
-                    }
+                    currentStriker = state.currentStriker,
+                    currentNonStriker = state.currentNonStriker,
+                    recordBall = recordBall
                 )
                 BallsHistory(state.allBalls)
             }
@@ -195,7 +154,12 @@ fun ScoreRecorderScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EnterPlayerNameBottomSheet(sheetState: SheetState, playerName: String, onSetPlayerName: (String) -> Unit, onDismiss: () -> Unit) {
+fun EnterPlayerNameBottomSheet(
+    sheetState: SheetState,
+    playerName: String,
+    onSetPlayerName: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
     val focusRequester = FocusRequester()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -246,12 +210,13 @@ data class Player(
 )
 
 @Composable
-fun Players(modifier: Modifier = Modifier, player1: Player?, player2: Player?) {
+fun Batters(modifier: Modifier = Modifier, player1: Batter?, player2: Batter?) {
     Column(modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
+        Text("Batters", fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
         player1?.let {
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row {
-                    Text(player1.displayName)
+                    Text(player1.name)
                     Icon(
                         Icons.Filled.Edit,
                         contentDescription = "Edit",
@@ -262,13 +227,13 @@ fun Players(modifier: Modifier = Modifier, player1: Player?, player2: Player?) {
                             .size(16.dp)
                     )
                 }
-                Text(player1.score.toString())
+                Text(player1.runs.toString())
             }
         }
         player2?.let {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Row {
-                    Text(player2.displayName)
+                    Text(player2.name)
                     Icon(
                         Icons.Filled.Edit,
                         contentDescription = "Edit",
@@ -280,7 +245,7 @@ fun Players(modifier: Modifier = Modifier, player1: Player?, player2: Player?) {
                     )
                 }
 
-                Text(player2.score.toString())
+                Text(player2.runs.toString())
             }
         }
     }
@@ -326,7 +291,7 @@ fun BallsHistory(balls: List<Ball>, modifier: Modifier = Modifier) {
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .padding(vertical = 12.dp)
             .animateContentSize()
     ) {
@@ -354,7 +319,7 @@ fun BallsHistory(balls: List<Ball>, modifier: Modifier = Modifier) {
                     Text("Over ${it + 1}")
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         overs[it].forEach { ball ->
-                            if (ball.ballType == BallType.CORRECT_BALL) {
+                            if (ball is Ball.CorrectBall) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(12.dp))
@@ -363,7 +328,7 @@ fun BallsHistory(balls: List<Ball>, modifier: Modifier = Modifier) {
                                 ) {
                                     Text(text = ball.score.toString())
                                 }
-                            } else if (ball.ballType == BallType.WICKET) {
+                            } else if (ball is Ball.Wicket) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(12.dp))
@@ -373,7 +338,7 @@ fun BallsHistory(balls: List<Ball>, modifier: Modifier = Modifier) {
                                 ) {
                                     Text(text = "W - ${ball.score}")
                                 }
-                            } else if (ball.ballType == BallType.NO_BALL) {
+                            } else if (ball is Ball.NoBall) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(12.dp))
@@ -383,7 +348,7 @@ fun BallsHistory(balls: List<Ball>, modifier: Modifier = Modifier) {
                                 ) {
                                     Text(text = "NB - ${ball.score}")
                                 }
-                            } else if (ball.ballType == BallType.WIDE) {
+                            } else if (ball is Ball.WideBall) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(12.dp))
@@ -393,7 +358,7 @@ fun BallsHistory(balls: List<Ball>, modifier: Modifier = Modifier) {
                                 ) {
                                     Text(text = "W - ${ball.score}")
                                 }
-                            } else if (ball.ballType == BallType.DOT_BALL) {
+                            } else if (ball is Ball.DotBall) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(12.dp))
@@ -460,10 +425,51 @@ fun OversAndWickets(balls: Int, wickets: Int, modifier: Modifier = Modifier) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun ScoreRecorder(recordBall: (Ball) -> Unit, modifier: Modifier = Modifier) {
+fun ScoreRecorder(currentStriker: Batter?, currentNonStriker: Batter?, recordBall: (Ball) -> Unit, modifier: Modifier = Modifier) {
     var currentBall: BallType? by rememberSaveable { mutableStateOf(null) }
+    var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
+    var showSelectOutPlayerSheet by rememberSaveable { mutableStateOf(false) }
+    var selectOutPlayerBottomSheetState = rememberModalBottomSheetState()
+    var currentOutPlayerId: Long? by rememberSaveable { mutableStateOf(null) }
+    var currentScore: Int by rememberSaveable { mutableStateOf(0)}
+    val coroutineScope = rememberCoroutineScope()
+
+    if (showEnterPlayerNameBottomSheet) {
+        EnterPlayerNameBottomSheet(
+            sheetState = enterPlayerNameBottomSheetState,
+            playerName = "",
+            onSetPlayerName = { newPlayerName ->
+                currentOutPlayerId?.let {
+                    recordBall(Ball.Wicket(currentScore, it, newPlayerName))
+                }
+                showEnterPlayerNameBottomSheet = false
+            },
+            onDismiss = { showEnterPlayerNameBottomSheet = false }
+        )
+    }
+
+    if (showSelectOutPlayerSheet) {
+        SelectOutPlayerName(
+            bottomSheetState = selectOutPlayerBottomSheetState,
+            player1Name = currentStriker,
+            player2Name = currentNonStriker,
+            onDismissRequest = { showSelectOutPlayerSheet = false },
+            onSelected = { outPlayerId ->
+                coroutineScope.launch {
+                    selectOutPlayerBottomSheetState.hide()
+                }.invokeOnCompletion {
+                    currentOutPlayerId = outPlayerId
+                    showSelectOutPlayerSheet = false
+                    showEnterPlayerNameBottomSheet = true
+                }
+            }
+        )
+    }
+
+
     Row(modifier = modifier.fillMaxWidth().height(100.dp).padding(horizontal = 12.dp)) {
         AnimatedVisibility(visible = currentBall == null) {
             FlowRow(
@@ -476,7 +482,7 @@ fun ScoreRecorder(recordBall: (Ball) -> Unit, modifier: Modifier = Modifier) {
                         text = it.displayStr,
                         onClick = {
                             if (it == BallType.DOT_BALL) {
-                                recordBall(Ball(BallType.DOT_BALL))
+                                recordBall(Ball.DotBall)
                             } else {
                                 currentBall = it
                             }
@@ -495,8 +501,18 @@ fun ScoreRecorder(recordBall: (Ball) -> Unit, modifier: Modifier = Modifier) {
                     ScoreLabel(
                         score = it,
                         onClick = {
-                            recordBall(Ball(currentBall!!, it))
-                            currentBall = null
+                            if (currentBall == BallType.WICKET) {
+                                showSelectOutPlayerSheet = true
+                                currentScore = it
+                            } else {
+                                when(currentBall) {
+                                    BallType.WIDE -> recordBall(Ball.WideBall(it))
+                                    BallType.CORRECT_BALL -> recordBall(Ball.CorrectBall(it))
+                                    BallType.NO_BALL ->  recordBall(Ball.NoBall(it))
+                                    else -> Unit
+                                }
+                                currentBall = null
+                            }
                         }
                     )
                 }
@@ -509,10 +525,10 @@ fun ScoreRecorder(recordBall: (Ball) -> Unit, modifier: Modifier = Modifier) {
 @Composable
 fun SelectOutPlayerName(
     bottomSheetState: SheetState,
-    player1Name: String,
-    player2Name: String,
+    player1Name: Batter?,
+    player2Name: Batter?,
     onDismissRequest: () -> Unit,
-    onSelected: (playerName: String) -> Unit
+    onSelected: (playerId: Long) -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismissRequest, sheetState = bottomSheetState) {
         Column(
@@ -532,9 +548,9 @@ fun SelectOutPlayerName(
                         shape = RoundedCornerShape(12.dp)
                     ),
             ) {
-                SelectOutPlayerNameText(name = player1Name, onSelected = { onSelected(player1Name) })
+                SelectOutPlayerNameText(name = player1Name?.name ?: "", onSelected = { onSelected(player1Name?.id ?: 0L) })
                 HorizontalDivider()
-                SelectOutPlayerNameText(name = player2Name, onSelected = { onSelected(player2Name) })
+                SelectOutPlayerNameText(name = player2Name?.name ?: "", onSelected = { onSelected(player2Name?.id ?: 0L) })
             }
         }
     }
@@ -636,7 +652,7 @@ fun groupBallsIntoOvers(balls: List<Ball>): List<List<Ball>> {
     for (ball in balls) {
         currentOver.add(ball)
 
-        if (ball.ballType != BallType.WIDE && ball.ballType != BallType.NO_BALL) {
+        if (ball !is Ball.WideBall && ball !is Ball.NoBall) {
             validBallCount++
         }
 

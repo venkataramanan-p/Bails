@@ -9,8 +9,8 @@ sealed interface ScoreRecorderScreenState {
         val allBalls: List<Ball>,
         val totalOvers: Int,
         val previousInningsSummary: InningsSummary? = null,
-        val currentStriker: Player? = null,
-        val currentNonStriker: Player? = null,
+        val currentStriker: Batter? = null,
+        val currentNonStriker: Batter? = null,
         val bowlerName: Bowler? = null
     ): ScoreRecorderScreenState
 
@@ -38,10 +38,33 @@ enum class BallType(val displayStr: String) {
     WICKET("Wicket")
 }
 
-data class Ball(
-    val ballType: BallType,
-    val score: Int = 0,
-    val strikerName: String = "",
-    val nonStrikerName: String = "",
-    val bowlerName: String = ""
+sealed class Ball(val score: Int) {
+    data class CorrectBall(
+        val runs: Int,
+    ) : Ball(runs)
+
+    data class WideBall(
+        val runs: Int = 1,
+    ) : Ball(runs)
+
+    data class NoBall(
+        val runs: Int = 1,
+    ) : Ball(runs)
+
+    object DotBall: Ball(0)
+
+    data class Wicket(
+        val runs: Int,
+        val outPlayerId: Long,
+        val newPlayerName: String,
+    ): Ball(runs)
+}
+
+data class Batter(
+    val id: Long,
+    val name: String,
+    val runs: Int = 0,
+    val boundaries: Int = 0,
+    val sixes: Int = 0,
+    val ballsFaced: Int = 0
 )

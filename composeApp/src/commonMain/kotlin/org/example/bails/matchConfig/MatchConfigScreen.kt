@@ -87,7 +87,10 @@ fun MatchConfigScreen(
                 },
             )
             Button(
-                onClick = { onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, strikerName, nonStrikerName, bowlerName) },
+                onClick = {
+                    keyboardController?.hide()
+                    onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, strikerName, nonStrikerName, bowlerName)
+                },
                 enabled = numberOfOvers?.toIntOrNull() != null && numberOfOvers!!.toIntOrNull()!! > 0,
                 modifier = Modifier.padding(top = 20.dp)
             ) {
