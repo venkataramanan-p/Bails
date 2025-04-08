@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -25,7 +24,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -70,7 +68,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ScoreRecorderScreen(
     state: ScoreRecorderScreenState,
-    undoLastBall: () -> Unit,
+    undoLastBall: () -> Boolean,
     recordBall: (Ball) -> Unit,
     onStartNextInnings: () -> Unit,
     goBack: () -> Unit,
@@ -113,7 +111,6 @@ fun ScoreRecorderScreen(
         }
 
 
-
         if (state is ScoreRecorderScreenState.InningsBreak) {
             InningsBreak(
                 state.previousInningsSummary,
@@ -140,7 +137,7 @@ fun ScoreRecorderScreen(
                     player1 = state.currentStriker,
                     player2 = state.currentNonStriker
                 )
-                OversAndWickets(balls = state.balls, wickets = state.wickets)
+                OversAndWickets(balls = state.balls, wickets = state.wickets, modifier = Modifier.padding(vertical = 8.dp))
                 ScoreRecorder(
                     currentStriker = state.currentStriker,
                     currentNonStriker = state.currentNonStriker,
@@ -210,43 +207,44 @@ data class Player(
 )
 
 @Composable
-fun Batters(modifier: Modifier = Modifier, player1: Batter?, player2: Batter?) {
-    Column(modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp).padding(bottom = 12.dp)) {
-        Text("Batters", fontWeight = FontWeight.Medium, modifier = Modifier.padding(bottom = 8.dp))
-        player1?.let {
-            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Row {
-                    Text(player1.name)
-                    Icon(
-                        Icons.Filled.Edit,
-                        contentDescription = "Edit",
-                        tint = Color.Gray,
-                        modifier = Modifier
-                            .clickable {  }
-                            .padding(horizontal = 4.dp)
-                            .size(16.dp)
-                    )
-                }
-                Text(player1.runs.toString())
+fun Batters(modifier: Modifier = Modifier, player1: Batter, player2: Batter) {
+    Row(modifier = Modifier
+        .border(1.dp, Color.Black, shape = RoundedCornerShape(16.dp))
+        .padding(top = 8.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
+            Text("Name", fontWeight = FontWeight.Medium)
+            Row {
+                Text(player1.name, modifier = Modifier.padding(vertical = 8.dp))
+            }
+            Row {
+                Text(player2.name, modifier = Modifier.padding(vertical = 8.dp))
             }
         }
-        player2?.let {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Row {
-                    Text(player2.name)
-                    Icon(
-                        Icons.Filled.Edit,
-                        contentDescription = "Edit",
-                        tint = Color.Gray,
-                        modifier = Modifier
-                            .clickable {  }
-                            .padding(horizontal = 4.dp)
-                            .size(16.dp)
-                    )
-                }
-
-                Text(player2.runs.toString())
-            }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("R", fontWeight = FontWeight.Medium)
+            Text("${player1.runs}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("${player2.runs}", modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("B", fontWeight = FontWeight.Medium)
+            Text("${player1.ballsFaced}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("${player2.ballsFaced}", modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("4s", fontWeight = FontWeight.Medium)
+            Text("${player1.boundaries}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("${player2.boundaries}", modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("6s", fontWeight = FontWeight.Medium)
+            Text("${player1.sixes}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("${player2.sixes}", modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("S/R", fontWeight = FontWeight.Medium)
+            Text("${ if(player1.ballsFaced == 0) 0 else (player1.runs / player1.ballsFaced) * 100}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("${if(player2.ballsFaced == 0) 0 else (player2.runs / player2.ballsFaced) * 100}", modifier = Modifier.padding(vertical = 8.dp))
         }
     }
 }
@@ -408,7 +406,7 @@ fun ColumnScope.ScoreDisplay(score: Int, modifier: Modifier = Modifier) {
 @Composable
 fun OversAndWickets(balls: Int, wickets: Int, modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .padding(bottom = 12.dp),
@@ -446,6 +444,7 @@ fun ScoreRecorder(currentStriker: Batter?, currentNonStriker: Batter?, recordBal
                     recordBall(Ball.Wicket(currentScore, it, newPlayerName))
                 }
                 showEnterPlayerNameBottomSheet = false
+                currentBall = null
             },
             onDismiss = { showEnterPlayerNameBottomSheet = false }
         )

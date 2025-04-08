@@ -9,8 +9,8 @@ sealed interface ScoreRecorderScreenState {
         val allBalls: List<Ball>,
         val totalOvers: Int,
         val previousInningsSummary: InningsSummary? = null,
-        val currentStriker: Batter? = null,
-        val currentNonStriker: Batter? = null,
+        val currentStriker: Batter,
+        val currentNonStriker: Batter,
         val bowlerName: Bowler? = null
     ): ScoreRecorderScreenState
 

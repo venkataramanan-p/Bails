@@ -17,6 +17,8 @@ class ScoreRecorderViewModel(
     private val nonStrikerName = (savedStateHandle["nonStrikerName"] as? String).takeIf { it?.isNotBlank() == true } ?: "Unnamed player"
     private val bowlerName = (savedStateHandle["bowlerName"] as? String).takeIf { it?.isNotBlank() == true } ?: "Unnamed Player"
 
+    var previousBallState: ScoreRecorderScreenState.InningsRunning? = null
+
     var state: ScoreRecorderScreenState by mutableStateOf(
         ScoreRecorderScreenState.InningsRunning(
             balls = 0,
@@ -29,10 +31,12 @@ class ScoreRecorderViewModel(
             bowlerName = Bowler(bowlerName)
         )
     )
+    private val battersHistory = mutableListOf<Batter>()
 
     fun recordBall(ball: Ball) {
-        val striker = (state as ScoreRecorderScreenState.InningsRunning).currentStriker
-        val nonStriker = (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker
+        previousBallState = state as ScoreRecorderScreenState.InningsRunning
+        val striker = (state as ScoreRecorderScreenState.InningsRunning).currentStriker!!
+        val nonStriker = (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker!!
         val isStrikeChanged = ball.score % 2 == 1
 
         when(ball) {
@@ -40,7 +44,7 @@ class ScoreRecorderViewModel(
                 state = (state as ScoreRecorderScreenState.InningsRunning).copy(
                     balls = (state as ScoreRecorderScreenState.InningsRunning).balls + 1,
                     allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball,
-                    currentStriker = striker?.copy(ballsFaced = striker.ballsFaced + 1),
+                    currentStriker = striker.copy(ballsFaced = striker.ballsFaced + 1),
                     currentNonStriker = nonStriker
                 )
 
@@ -55,15 +59,28 @@ class ScoreRecorderViewModel(
                 )
             }
             is Ball.Wicket -> {
+                var isStrikerOut = false
+                val outPlayer = if (ball.outPlayerId == (state as ScoreRecorderScreenState.InningsRunning).currentStriker?.id) {
+                    isStrikerOut = true
+                    (state as ScoreRecorderScreenState.InningsRunning).currentStriker
+                } else {
+                    isStrikerOut = false
+                    (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker
+                }
+                outPlayer?.let {
+                    battersHistory.add(outPlayer)
+                }
+
+
                 state = (state as ScoreRecorderScreenState.InningsRunning).copy(
                     wickets = (state as ScoreRecorderScreenState.InningsRunning).wickets + 1,
                     score = (state as ScoreRecorderScreenState.InningsRunning).score + ball.score,
                     balls = (state as ScoreRecorderScreenState.InningsRunning).balls + 1,
                     allBalls = (state as ScoreRecorderScreenState.InningsRunning).allBalls + ball,
-                    currentStriker = if(ball.outPlayerId == (state as ScoreRecorderScreenState.InningsRunning).currentStriker?.id) Batter(
-                        Clock.System.now().toEpochMilliseconds(), name = ball.newPlayerName) else (state as ScoreRecorderScreenState.InningsRunning).currentStriker,
-                    currentNonStriker = if(ball.outPlayerId == (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker?.id) Batter(
-                        Clock.System.now().toEpochMilliseconds(), name = ball.newPlayerName) else (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker
+                    currentStriker = if(isStrikerOut) Batter(Clock.System.now().toEpochMilliseconds(), name = ball.newPlayerName)
+                                    else (state as ScoreRecorderScreenState.InningsRunning).currentStriker,
+                    currentNonStriker = if(!isStrikerOut) Batter(Clock.System.now().toEpochMilliseconds(), name = ball.newPlayerName)
+                                    else (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker
                 )
             }
             is Ball.NoBall, is Ball.WideBall -> {
@@ -87,8 +104,17 @@ class ScoreRecorderViewModel(
         }
     }
 
-    fun undoLastBall() {
-        if((state as ScoreRecorderScreenState.InningsRunning).allBalls.isNotEmpty()) {
+    fun undoLastBall(): Boolean {
+        return previousBallState?.let { previousState ->
+            val previousBall = (state as ScoreRecorderScreenState.InningsRunning).allBalls.last()
+            if (previousBall is Ball.Wicket) {
+                battersHistory.removeLast()
+            }
+            state = previousState
+            true
+        } ?: run { false }
+
+        /*if((state as ScoreRecorderScreenState.InningsRunning).allBalls.isNotEmpty()) {
             val lastBall = (state as ScoreRecorderScreenState.InningsRunning).allBalls.last()
             when(lastBall) {
                 is Ball.DotBall -> {
@@ -120,23 +146,23 @@ class ScoreRecorderViewModel(
                 }
             }
             state = (state as ScoreRecorderScreenState.InningsRunning).copy()
-        }
+        }*/
     }
 
     fun startNextInnings() {
-        state = ScoreRecorderScreenState.InningsRunning(
-            balls = 0,
-            score = 0,
-            wickets = 0,
-            allBalls = emptyList(),
-            totalOvers = numberOfOvers,
-            previousInningsSummary = (state as ScoreRecorderScreenState.InningsBreak).previousInningsSummary
-        )
+//        state = ScoreRecorderScreenState.InningsRunning(
+//            balls = 0,
+//            score = 0,
+//            wickets = 0,
+//            allBalls = emptyList(),
+//            totalOvers = numberOfOvers,
+//            previousInningsSummary = (state as ScoreRecorderScreenState.InningsBreak).previousInningsSummary
+//        )
 
     }
 
-    private fun updateBatter(batter: Batter?, ball: Ball): Batter? {
-        return batter?.copy(
+    private fun updateBatter(batter: Batter, ball: Ball): Batter {
+        return batter.copy(
             ballsFaced = batter.ballsFaced + 1,
             boundaries = if (ball.score == 4) batter.boundaries + 1 else batter.boundaries,
             sixes = if (ball.score == 6) batter.sixes + 1 else batter.sixes,
