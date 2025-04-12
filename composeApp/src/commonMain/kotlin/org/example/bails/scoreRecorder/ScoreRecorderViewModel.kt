@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import kotlinx.datetime.Clock
+import org.example.bails.util.roundToDecimals
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -210,6 +211,31 @@ class ScoreRecorderViewModel(
         }*/
     }
 
+    fun toggleStrike() {
+        val currentStriker = (state as ScoreRecorderScreenState.InningsRunning).currentStriker
+        val currentNonStriker = (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker
+        state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+            currentStriker = currentNonStriker,
+            currentNonStriker = currentStriker
+        )
+    }
+
+    fun onRetiredHurt(batterId: Long, newBatterName: String) {
+        val currentStriker = (state as ScoreRecorderScreenState.InningsRunning).currentStriker
+        val currentNonStriker = (state as ScoreRecorderScreenState.InningsRunning).currentNonStriker
+        if (currentStriker.id == batterId) {
+            state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                currentStriker = Batter(Clock.System.now().toEpochMilliseconds(), name = newBatterName),
+                currentNonStriker = currentNonStriker
+            )
+        } else if (currentNonStriker.id == batterId) {
+            state = (state as ScoreRecorderScreenState.InningsRunning).copy(
+                currentStriker = currentStriker,
+                currentNonStriker = Batter(Clock.System.now().toEpochMilliseconds(), name = newBatterName)
+            )
+        }
+    }
+
     fun startNextInnings() {
 //        state = ScoreRecorderScreenState.InningsRunning(
 //            balls = 0,
@@ -228,8 +254,8 @@ class ScoreRecorderViewModel(
             .filter { it.bowler.id == currentBowler.id }
         val oversBowled = (((oversByBowler.size - 1) + (oversByBowler.last().balls.filter { it.isValidBall() }.size * 0.1)).toFloat())
             .let { if (it % 1 == 0.6f) (it.toInt() + 1).toFloat() else it }
-        val maidenOvers = oversByBowler.filter { it.balls.all { ball -> ball.score == 0 } }.size
-        val runsGiven = oversByBowler.sumOf { it.balls.sumOf { ball -> ball.score } }
+        val maidenOvers = oversByBowler.filter { it.balls.isNotEmpty() && it.balls.all { ball -> ball.score == 0 } }.size
+        val runsGiven = oversByBowler.sumOf { it.balls.sumOf { ball -> if (!ball.isValidBall()) ball.score + 1 else ball.score } }
         val economy = if (oversBowled > 0) {
             (runsGiven * 6.0 / (oversByBowler.map { it.balls }.flatten().filter { it.isValidBall() }.size.toFloat())).toFloat().roundToDecimals(2)
         } else {
@@ -242,7 +268,7 @@ class ScoreRecorderViewModel(
 
     private fun updateBatter(batter: Batter, ball: Ball): Batter {
         return batter.copy(
-            ballsFaced = batter.ballsFaced + 1,
+            ballsFaced = if (ball.isValidBall()) batter.ballsFaced + 1 else batter.ballsFaced,
             boundaries = if (ball.score == 4) batter.boundaries + 1 else batter.boundaries,
             sixes = if (ball.score == 6) batter.sixes + 1 else batter.sixes,
             runs = batter.runs + ball.score,
@@ -253,12 +279,5 @@ class ScoreRecorderViewModel(
         return this is Ball.CorrectBall ||
                 this is Ball.DotBall ||
                 this is Ball.Wicket
-    }
-
-    fun Float.roundToDecimals(decimals: Int): Float {
-        var dotAt = 1
-        repeat(decimals) { dotAt *= 10 }
-        val roundedValue = (this * dotAt).roundToInt()
-        return (roundedValue / dotAt) + (roundedValue % dotAt).toFloat() / dotAt
     }
 }

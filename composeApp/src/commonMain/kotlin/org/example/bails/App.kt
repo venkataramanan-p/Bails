@@ -50,7 +50,9 @@ fun App() {
                 recordBall = viewmodel::recordBall,
                 onStartNextInnings = viewmodel::startNextInnings,
                 onStartNextOver = viewmodel::startNextOver,
-                goBack = navController::navigateUp
+                goBack = navController::navigateUp,
+                onToggleStrike = viewmodel::toggleStrike,
+                onRetiredHurt = viewmodel::onRetiredHurt
             )
         }
     }
