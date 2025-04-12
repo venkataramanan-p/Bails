@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -26,6 +27,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,7 +64,10 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import bails.composeapp.generated.resources.Res
+import bails.composeapp.generated.resources.ic_ball
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,14 +76,68 @@ fun ScoreRecorderScreen(
     undoLastBall: () -> Boolean,
     recordBall: (Ball) -> Unit,
     onStartNextInnings: () -> Unit,
+    onStartNextOver: (bowlerId: Long?, bowlerName: String?) -> Unit,
     goBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // todo: interrupt back press and show confirmation dialog
 
+    val coroutineScope = rememberCoroutineScope()
+
     var showUndoConfirmAlert by rememberSaveable { mutableStateOf(false) }
     var showConfirmBackPressAlert by rememberSaveable { mutableStateOf(false) }
-    var currentBall: Ball? by rememberSaveable { mutableStateOf(null) }
+    var showNextBowlerSelecttionBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var nextBowlerSelectionBottomSheetState = rememberModalBottomSheetState()
+    var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
+
+    if (showNextBowlerSelecttionBottomSheet) {
+        SelectNextBowlerBottomSheet(
+            sheetState = nextBowlerSelectionBottomSheetState,
+            bowlers = (state as ScoreRecorderScreenState.InningsRunning).allOvers.map { it.bowler }.toSet().toList(),
+            onBowlerSelected = {
+                onStartNextOver(it, null)
+                showNextBowlerSelecttionBottomSheet = false
+            },
+            onAddNewBowler = {
+                coroutineScope.launch {
+                    nextBowlerSelectionBottomSheetState.hide()
+                }.invokeOnCompletion {
+                    showNextBowlerSelecttionBottomSheet = false
+                    showEnterPlayerNameBottomSheet = true
+                }
+            }
+        )
+    }
+
+    if (showEnterPlayerNameBottomSheet) {
+        EnterPlayerNameBottomSheet(
+            sheetState = enterPlayerNameBottomSheetState,
+            playerName = "",
+            onSetPlayerName = { newBowlerName ->
+                coroutineScope.launch {
+                    enterPlayerNameBottomSheetState.hide()
+                }.invokeOnCompletion {
+                    showEnterPlayerNameBottomSheet = false
+                    onStartNextOver(null, newBowlerName)
+                }
+            },
+            onDismiss = {}
+        )
+    }
+
+    if (state is ScoreRecorderScreenState.InningsRunning && state.isOverCompleted) {
+        OverCompleted(
+            onUndoLastBall = {
+                undoLastBall()
+                showUndoConfirmAlert = false
+            },
+            onStartNextOver = {
+
+                showNextBowlerSelecttionBottomSheet = true
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -110,7 +169,6 @@ fun ScoreRecorderScreen(
             )
         }
 
-
         if (state is ScoreRecorderScreenState.InningsBreak) {
             InningsBreak(
                 state.previousInningsSummary,
@@ -133,18 +191,69 @@ fun ScoreRecorderScreen(
                 }
 
                 ScoreDisplay(score = state.score)
+                OversAndWickets(
+                    balls = state.balls,
+                    wickets = state.wickets,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                Text(
+                    "Batters",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(8.dp),
+                )
                 Batters(
                     player1 = state.currentStriker,
-                    player2 = state.currentNonStriker
+                    player2 = state.currentNonStriker,
                 )
-                OversAndWickets(balls = state.balls, wickets = state.wickets, modifier = Modifier.padding(vertical = 8.dp))
+                Text(
+                    text = "Bowler",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(8.dp)
+                )
+                BowlerStats(stats = state.bowlersStats)
                 ScoreRecorder(
                     currentStriker = state.currentStriker,
                     currentNonStriker = state.currentNonStriker,
-                    recordBall = recordBall
+                    recordBall = recordBall,
+                    currentBowler = state.allOvers.last().bowler,
+                    modifier = Modifier.padding(top = 8.dp)
                 )
-                BallsHistory(state.allBalls)
+                BallsHistory(state.allOvers)
             }
+        }
+    }
+}
+
+@Composable
+fun BowlerStats(stats: BowlerStats) {
+    Row(modifier = Modifier
+        .padding(horizontal = 8.dp)
+        .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+        .padding(top = 8.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
+            Text("Name", style = MaterialTheme.typography.bodySmall)
+            Text(stats.bowler.name, modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("O", style = MaterialTheme.typography.bodySmall)
+            Text("${stats.overs}", modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("M", style = MaterialTheme.typography.bodySmall)
+            Text("${stats.maidenOvers}", modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("R", style = MaterialTheme.typography.bodySmall)
+            Text("${stats.runs}", modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("W", style = MaterialTheme.typography.bodySmall)
+            Text("${stats.wickets}", modifier = Modifier.padding(vertical = 8.dp))
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Econ", style = MaterialTheme.typography.bodySmall)
+            Text("${stats.economy}", modifier = Modifier.padding(vertical = 8.dp))
         }
     }
 }
@@ -196,24 +305,91 @@ fun EnterPlayerNameBottomSheet(
     }
 }
 
-data class Player(
-    val displayName: String,
-    val score: Int,
-    val isBatting: Boolean = false,
-    val ballsFaced: Int = 0,
-    val numberOfFours: Int = 0,
-    val numberOfSixes: Int = 0,
-    val strikerRate: Float = 0.0f
-)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OverCompleted(onStartNextOver: () -> Unit, onUndoLastBall: () -> Unit) {
+    BasicAlertDialog(onDismissRequest = {}) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(vertical = 16.dp)
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_ball),
+                contentDescription = "Over completed icon",
+                modifier = Modifier
+                    .size(100.dp)
+                    .padding(top = 16.dp)
+            )
+            Text(
+                text = "Over completed!!!",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+            Button(onClick = onStartNextOver) {
+                Text("Start Next Over")
+            }
+            TextButton(onClick = onUndoLastBall) {
+                Text("Undo Last ball")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SelectNextBowlerBottomSheet(
+    sheetState: SheetState,
+    bowlers: List<Bowler>,
+    onBowlerSelected: (bowlerId: Long) -> Unit,
+    onAddNewBowler: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = {}, sheetState = sheetState) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Select the next bowler",
+                    fontWeight = FontWeight.Medium,
+                )
+                TextButton(onClick = onAddNewBowler) {
+                    Text("Add new bowler")
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .border(
+                        width = 1.dp,
+                        color = DividerDefaults.color,
+                        shape = RoundedCornerShape(12.dp)
+                    ),
+            ) {
+                bowlers.forEach {
+                    PlayerNameText(name = it.name, onSelected = { onBowlerSelected(it.id) })
+                    HorizontalDivider()
+                }
+            }
+        }
+    }
+}
 
 @Composable
-fun Batters(modifier: Modifier = Modifier, player1: Batter, player2: Batter) {
-    Row(modifier = Modifier
-        .border(1.dp, Color.Black, shape = RoundedCornerShape(16.dp))
+fun Batters(player1: Batter, player2: Batter, modifier: Modifier = Modifier) {
+    Row(modifier = modifier
+        .padding(horizontal = 8.dp)
+        .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
         .padding(top = 8.dp)
     ) {
         Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
-            Text("Name", fontWeight = FontWeight.Medium)
+            Text("Name", style = MaterialTheme.typography.bodySmall)
             Row {
                 Text(player1.name, modifier = Modifier.padding(vertical = 8.dp))
             }
@@ -222,28 +398,28 @@ fun Batters(modifier: Modifier = Modifier, player1: Batter, player2: Batter) {
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("R", fontWeight = FontWeight.Medium)
-            Text("${player1.runs}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("R", style = MaterialTheme.typography.bodySmall)
+            Text("${player1.runs}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.runs}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("B", fontWeight = FontWeight.Medium)
-            Text("${player1.ballsFaced}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("B", style = MaterialTheme.typography.bodySmall)
+            Text("${player1.ballsFaced}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.ballsFaced}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("4s", fontWeight = FontWeight.Medium)
-            Text("${player1.boundaries}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("4s", style = MaterialTheme.typography.bodySmall)
+            Text("${player1.boundaries}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.boundaries}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("6s", fontWeight = FontWeight.Medium)
-            Text("${player1.sixes}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("6s", style = MaterialTheme.typography.bodySmall)
+            Text("${player1.sixes}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.sixes}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("S/R", fontWeight = FontWeight.Medium)
-            Text("${ if(player1.ballsFaced == 0) 0 else (player1.runs / player1.ballsFaced) * 100}", modifier = Modifier.background(Color.Gray).padding(vertical = 8.dp))
+            Text("S/R", style = MaterialTheme.typography.bodySmall)
+            Text("${ if(player1.ballsFaced == 0) 0 else (player1.runs / player1.ballsFaced) * 100}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${if(player2.ballsFaced == 0) 0 else (player2.runs / player2.ballsFaced) * 100}", modifier = Modifier.padding(vertical = 8.dp))
         }
     }
@@ -277,14 +453,12 @@ fun InningsBreak(previousInningsSummary: InningsSummary, onStartNextInnings: () 
 }
 
 @Composable
-fun BallsHistory(balls: List<Ball>, modifier: Modifier = Modifier) {
+fun BallsHistory(overs: List<Over>, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
 
-    val overs = groupBallsIntoOvers(balls)
-
-    LaunchedEffect(balls.size) {
-        if (balls.isNotEmpty()) {
-            listState.animateScrollToItem(balls.lastIndex)
+    LaunchedEffect(overs.map { it.balls }.flatten().size) {
+        if (overs.isNotEmpty() && overs.first().balls.isNotEmpty()) {
+            listState.animateScrollToItem(overs.map { it.balls }.flatten().lastIndex)
         }
     }
 
@@ -316,7 +490,7 @@ fun BallsHistory(balls: List<Ball>, modifier: Modifier = Modifier) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Over ${it + 1}")
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        overs[it].forEach { ball ->
+                        overs[it].balls.forEach { ball ->
                             if (ball is Ball.CorrectBall) {
                                 Box(
                                     modifier = Modifier
@@ -408,8 +582,7 @@ fun OversAndWickets(balls: Int, wickets: Int, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
-            .padding(bottom = 12.dp),
+            .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row {
@@ -425,7 +598,7 @@ fun OversAndWickets(balls: Int, wickets: Int, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun ScoreRecorder(currentStriker: Batter?, currentNonStriker: Batter?, recordBall: (Ball) -> Unit, modifier: Modifier = Modifier) {
+fun ScoreRecorder(currentStriker: Batter?, currentNonStriker: Batter?, currentBowler: Bowler, recordBall: (Ball) -> Unit, modifier: Modifier = Modifier) {
     var currentBall: BallType? by rememberSaveable { mutableStateOf(null) }
     var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
     var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
@@ -441,7 +614,7 @@ fun ScoreRecorder(currentStriker: Batter?, currentNonStriker: Batter?, recordBal
             playerName = "",
             onSetPlayerName = { newPlayerName ->
                 currentOutPlayerId?.let {
-                    recordBall(Ball.Wicket(currentScore, it, newPlayerName))
+                    recordBall(Ball.Wicket(currentScore, it, newPlayerName, currentBowler))
                 }
                 showEnterPlayerNameBottomSheet = false
                 currentBall = null
@@ -481,7 +654,7 @@ fun ScoreRecorder(currentStriker: Batter?, currentNonStriker: Batter?, recordBal
                         text = it.displayStr,
                         onClick = {
                             if (it == BallType.DOT_BALL) {
-                                recordBall(Ball.DotBall)
+                                recordBall(Ball.DotBall(currentBowler))
                             } else {
                                 currentBall = it
                             }
@@ -505,9 +678,9 @@ fun ScoreRecorder(currentStriker: Batter?, currentNonStriker: Batter?, recordBal
                                 currentScore = it
                             } else {
                                 when(currentBall) {
-                                    BallType.WIDE -> recordBall(Ball.WideBall(it))
-                                    BallType.CORRECT_BALL -> recordBall(Ball.CorrectBall(it))
-                                    BallType.NO_BALL ->  recordBall(Ball.NoBall(it))
+                                    BallType.WIDE -> recordBall(Ball.WideBall(it, currentBowler))
+                                    BallType.CORRECT_BALL -> recordBall(Ball.CorrectBall(it, currentBowler))
+                                    BallType.NO_BALL ->  recordBall(Ball.NoBall(it, currentBowler))
                                     else -> Unit
                                 }
                                 currentBall = null
@@ -547,16 +720,16 @@ fun SelectOutPlayerName(
                         shape = RoundedCornerShape(12.dp)
                     ),
             ) {
-                SelectOutPlayerNameText(name = player1Name?.name ?: "", onSelected = { onSelected(player1Name?.id ?: 0L) })
+                PlayerNameText(name = player1Name?.name ?: "", onSelected = { onSelected(player1Name?.id ?: 0L) })
                 HorizontalDivider()
-                SelectOutPlayerNameText(name = player2Name?.name ?: "", onSelected = { onSelected(player2Name?.id ?: 0L) })
+                PlayerNameText(name = player2Name?.name ?: "", onSelected = { onSelected(player2Name?.id ?: 0L) })
             }
         }
     }
 }
 
 @Composable
-fun SelectOutPlayerNameText(name: String, onSelected: () -> Unit) {
+fun PlayerNameText(name: String, onSelected: () -> Unit) {
     Text(
         text = name,
         modifier = Modifier

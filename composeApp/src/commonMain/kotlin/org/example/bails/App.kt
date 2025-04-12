@@ -49,6 +49,7 @@ fun App() {
                 undoLastBall = viewmodel::undoLastBall,
                 recordBall = viewmodel::recordBall,
                 onStartNextInnings = viewmodel::startNextInnings,
+                onStartNextOver = viewmodel::startNextOver,
                 goBack = navController::navigateUp
             )
         }
