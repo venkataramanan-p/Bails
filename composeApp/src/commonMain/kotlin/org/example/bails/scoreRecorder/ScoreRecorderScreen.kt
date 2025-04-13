@@ -97,7 +97,7 @@ fun ScoreRecorderScreen(
     if (showNextBowlerSelecttionBottomSheet) {
         SelectNextBowlerBottomSheet(
             sheetState = nextBowlerSelectionBottomSheetState,
-            bowlers = (state as ScoreRecorderScreenState.InningsRunning).allOvers.map { it.bowler }.toSet().toList(),
+            bowlers = (state as ScoreRecorderScreenState.InningsRunning).allOvers.map { it.balls }.flatten().map { it.bowler }.toSet().toList(),
             onBowlerSelected = {
                 onStartNextOver(it, null)
                 showNextBowlerSelecttionBottomSheet = false
@@ -205,10 +205,10 @@ fun ScoreRecorderScreen(
                 )
                 ScoreRecorder(
                     state = state,
-                    currentStriker = state.currentStriker,
-                    currentNonStriker = state.currentNonStriker,
+                    currentStriker = state.battersStats.strikerStats,
+                    currentNonStriker = state.battersStats.nonStrikerStats,
                     recordBall = recordBall,
-                    currentBowler = state.allOvers.last().bowler,
+                    currentBowler = state.currentBowler,
                     onToggleStrike = onToggleStrike,
                     onRetiredHurt = onRetiredHurt,
                     modifier = Modifier.padding(top = 8.dp),
@@ -411,11 +411,11 @@ fun RetiredHurtButton(onClick: () -> Unit) {
 
 @Composable
 fun Batters(
-    player1: Batter,
-    player2: Batter,
+    player1: BatterStats,
+    player2: BatterStats,
     modifier: Modifier = Modifier,
     onToggleStrike: () -> Unit,
-    onRetiredHurt: (Batter) -> Unit,
+    onRetiredHurt: (PlainBatter) -> Unit,
 ) {
 
     var showStrikerBatterOptions by rememberSaveable { mutableStateOf(false) }
@@ -428,14 +428,14 @@ fun Batters(
     ) {
         Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
             Text("Name", style = MaterialTheme.typography.bodySmall)
-            Text(player1.name, modifier = Modifier.padding(vertical = 8.dp).clickable { showStrikerBatterOptions = !showStrikerBatterOptions })
+            Text(player1.batter.name, modifier = Modifier.padding(vertical = 8.dp).clickable { showStrikerBatterOptions = !showStrikerBatterOptions })
             AnimatedVisibility(showStrikerBatterOptions) {
                 RetiredHurtButton(onClick = {
                     showStrikerBatterOptions = false
-                    onRetiredHurt(player1)
+                    onRetiredHurt(player1.batter)
                 })
             }
-            Text(player2.name, modifier = Modifier.padding(vertical = 8.dp).clickable { showNonStrikerBatterOptions = !showNonStrikerBatterOptions })
+            Text(player2.batter.name, modifier = Modifier.padding(vertical = 8.dp).clickable { showNonStrikerBatterOptions = !showNonStrikerBatterOptions })
             AnimatedVisibility(showNonStrikerBatterOptions) {
                 Row {
                     ChangeStrikerButton {
@@ -444,7 +444,7 @@ fun Batters(
                     }
                     RetiredHurtButton {
                         showNonStrikerBatterOptions = false
-                        onRetiredHurt(player2)
+                        onRetiredHurt(player2.batter)
                     }
                 }
             }
@@ -652,8 +652,8 @@ fun OversAndWickets(balls: Int, wickets: Int, modifier: Modifier = Modifier) {
 @Composable
 fun ScoreRecorder(
     state: ScoreRecorderScreenState.InningsRunning,
-    currentStriker: Batter?,
-    currentNonStriker: Batter?,
+    currentStriker: BatterStats?,
+    currentNonStriker: BatterStats?,
     currentBowler: Bowler,
     recordBall: (Ball) -> Unit,
     onToggleStrike: () -> Unit,
@@ -680,7 +680,7 @@ fun ScoreRecorder(
                     retiredHurtPlayerId = null
                 }
                 currentOutPlayerId?.let {
-                    recordBall(Ball.Wicket(currentScore, it, newPlayerName, currentBowler))
+                    recordBall(Ball.Wicket(currentScore, it, newPlayerName, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
                 }
                 showEnterPlayerNameBottomSheet = false
                 currentBall = null
@@ -692,8 +692,8 @@ fun ScoreRecorder(
     if (showSelectOutPlayerSheet) {
         SelectOutPlayerName(
             bottomSheetState = selectOutPlayerBottomSheetState,
-            player1Name = currentStriker,
-            player2Name = currentNonStriker,
+            player1Name = currentStriker?.batter,
+            player2Name = currentNonStriker?.batter,
             onDismissRequest = { showSelectOutPlayerSheet = false },
             onSelected = { outPlayerId ->
                 coroutineScope.launch {
@@ -714,8 +714,8 @@ fun ScoreRecorder(
             modifier = Modifier.padding(8.dp),
         )
         Batters(
-            player1 = state.currentStriker,
-            player2 = state.currentNonStriker,
+            player1 = state.battersStats.strikerStats,
+            player2 = state.battersStats.nonStrikerStats,
             onToggleStrike = onToggleStrike,
             onRetiredHurt = {
                 retiredHurtPlayerId = it.id
@@ -740,7 +740,7 @@ fun ScoreRecorder(
                             text = it.displayStr,
                             onClick = {
                                 if (it == BallType.DOT_BALL) {
-                                    recordBall(Ball.DotBall(currentBowler))
+                                    recordBall(Ball.DotBall(currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
                                 } else {
                                     currentBall = it
                                 }
@@ -764,9 +764,9 @@ fun ScoreRecorder(
                                     currentScore = it
                                 } else {
                                     when(currentBall) {
-                                        BallType.WIDE -> recordBall(Ball.WideBall(it, currentBowler))
-                                        BallType.CORRECT_BALL -> recordBall(Ball.CorrectBall(it, currentBowler))
-                                        BallType.NO_BALL ->  recordBall(Ball.NoBall(it, currentBowler))
+                                        BallType.WIDE -> recordBall(Ball.WideBall(it, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
+                                        BallType.CORRECT_BALL -> recordBall(Ball.CorrectBall(it, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
+                                        BallType.NO_BALL ->  recordBall(Ball.NoBall(it, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
                                         else -> Unit
                                     }
                                     currentBall = null
@@ -785,8 +785,8 @@ fun ScoreRecorder(
 @Composable
 fun SelectOutPlayerName(
     bottomSheetState: SheetState,
-    player1Name: Batter?,
-    player2Name: Batter?,
+    player1Name: PlainBatter?,
+    player2Name: PlainBatter?,
     onDismissRequest: () -> Unit,
     onSelected: (playerId: Long) -> Unit
 ) {
@@ -930,7 +930,7 @@ fun groupBallsIntoOvers(balls: List<Ball>): List<List<Ball>> {
     return overs
 }
 
-fun Batter.getStrikeRate(): Float {
+fun BatterStats.getStrikeRate(): Float {
     return if(this.ballsFaced == 0) 0f
         else ((this.runs / this.ballsFaced.toFloat()) * 100f).roundToDecimals(2)
 }

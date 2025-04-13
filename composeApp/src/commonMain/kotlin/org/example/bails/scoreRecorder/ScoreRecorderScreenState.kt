@@ -9,8 +9,10 @@ sealed interface ScoreRecorderScreenState {
         val allOvers: List<Over>,
         val totalOvers: Int,
         val previousInningsSummary: InningsSummary? = null,
-        val currentStriker: Batter,
-        val currentNonStriker: Batter,
+        val currentPlainStriker: PlainBatter,
+        val currentPlainNonStriker: PlainBatter,
+        val currentBowler: Bowler,
+        val battersStats: BattersStats,
         val isOverCompleted: Boolean = false,
         val bowlersStats: BowlerStats
     ): ScoreRecorderScreenState
@@ -18,7 +20,24 @@ sealed interface ScoreRecorderScreenState {
     data class InningsBreak(
         val previousInningsSummary: InningsSummary
     ): ScoreRecorderScreenState
+
+    fun asInningsRunning(): InningsRunning {
+        return this as InningsRunning
+    }
 }
+
+data class BattersStats(
+    val strikerStats: BatterStats,
+    val nonStrikerStats: BatterStats
+)
+
+data class BatterStats(
+    val batter: PlainBatter,
+    val runs: Int = 0,
+    val boundaries: Int = 0,
+    val sixes: Int = 0,
+    val ballsFaced: Int = 0
+)
 
 data class BowlerStats(
     val bowler: Bowler,
@@ -30,7 +49,6 @@ data class BowlerStats(
 )
 
 data class Over(
-    val bowler: Bowler,
     val balls: List<Ball>,
 )
 
@@ -54,31 +72,48 @@ enum class BallType(val displayStr: String) {
     WICKET("Wicket")
 }
 
-sealed class Ball(val score: Int, val bowler: Bowler) {
+sealed class Ball(val score: Int, val bowler: Bowler, val iStriker: PlainBatter, val iNonStriker: PlainBatter) {
     data class CorrectBall(
         val runs: Int,
-        val assignedBower: Bowler
-    ) : Ball(runs, assignedBower)
+        val assignedBower: Bowler,
+        val striker: PlainBatter,
+        val nonStriker: PlainBatter,
+    ) : Ball(runs, assignedBower, striker, nonStriker)
 
     data class WideBall(
         val runs: Int = 1,
-        val assignedBower: Bowler
-    ) : Ball(runs, assignedBower)
+        val assignedBower: Bowler,
+        val striker: PlainBatter,
+        val nonStriker: PlainBatter,
+    ) : Ball(runs, assignedBower, striker, nonStriker)
 
     data class NoBall(
         val runs: Int = 1,
-        val assignedBower: Bowler
-    ) : Ball(runs, assignedBower)
+        val assignedBower: Bowler,
+        val striker: PlainBatter,
+        val nonStriker: PlainBatter,
+    ) : Ball(runs, assignedBower, striker, nonStriker)
 
-    data class DotBall(val assignedBower: Bowler): Ball(0, assignedBower)
+    data class DotBall(
+        val assignedBower: Bowler,
+        val striker: PlainBatter,
+        val nonStriker: PlainBatter
+    ): Ball(0, assignedBower, striker, nonStriker)
 
     data class Wicket(
         val runs: Int,
         val outPlayerId: Long,
         val newPlayerName: String,
-        val assignedBower: Bowler
-    ): Ball(runs, assignedBower)
+        val assignedBower: Bowler,
+        val striker: PlainBatter,
+        val nonStriker: PlainBatter,
+    ): Ball(runs, assignedBower, striker, nonStriker)
 }
+
+data class PlainBatter(
+    val id: Long,
+    val name: String
+)
 
 data class Batter(
     val id: Long,
