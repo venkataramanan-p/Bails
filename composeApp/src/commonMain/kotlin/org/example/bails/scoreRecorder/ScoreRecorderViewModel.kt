@@ -56,16 +56,16 @@ class ScoreRecorderViewModel(
 
         when(ball) {
             is Ball.DotBall -> {
-                state = inningsRunningState.copy(
-                    balls = inningsRunningState.balls + 1,
+                state = state.asInningsRunning().copy(
+                    balls = state.asInningsRunning().balls + 1,
                     allOvers = updateAllOversList(ball),
                 )
 
             }
             is Ball.CorrectBall -> {
-                state = inningsRunningState.copy(
-                    score = inningsRunningState.score + ball.score,
-                    balls = inningsRunningState.balls + 1,
+                state = state.asInningsRunning().copy(
+                    score = state.asInningsRunning().score + ball.score,
+                    balls = state.asInningsRunning().balls + 1,
                     allOvers = updateAllOversList(ball),
                 )
             }
@@ -78,18 +78,18 @@ class ScoreRecorderViewModel(
                 }
 //                battersHistory.add(outPlayer)
 
-                state = inningsRunningState.copy(
-                    wickets = inningsRunningState.wickets + 1,
-                    score = inningsRunningState.score + ball.score,
-                    balls = inningsRunningState.balls + 1,
+                state = state.asInningsRunning().copy(
+                    wickets = state.asInningsRunning().wickets + 1,
+                    score = state.asInningsRunning().score + ball.score,
+                    balls = state.asInningsRunning().balls + 1,
                     allOvers = updateAllOversList(ball),
                     currentPlainStriker = if(isStrikerOut) PlainBatter(Clock.System.now().toEpochMilliseconds(), ball.newPlayerName) else state.asInningsRunning().currentPlainStriker,
                     currentPlainNonStriker = if(isStrikerOut) state.asInningsRunning().currentPlainNonStriker else PlainBatter(Clock.System.now().toEpochMilliseconds(), ball.newPlayerName),
                 )
             }
             is Ball.NoBall, is Ball.WideBall -> {
-                state = inningsRunningState.copy(
-                    score = inningsRunningState.score + ball.score + 1,
+                state = state.asInningsRunning().copy(
+                    score = state.asInningsRunning().score + ball.score + 1,
                     allOvers = updateAllOversList(ball),
                 )
             }
@@ -97,12 +97,12 @@ class ScoreRecorderViewModel(
 
         if (isStrikeChanged) {
             state = state.asInningsRunning().copy(
-                currentPlainStriker = inningsRunningState.currentPlainNonStriker,
-                currentPlainNonStriker = inningsRunningState.currentPlainStriker
+                currentPlainStriker = state.asInningsRunning().currentPlainNonStriker,
+                currentPlainNonStriker = state.asInningsRunning().currentPlainStriker
             )
         }
 
-        if (state.asInningsRunning().balls  != 0 && state.asInningsRunning().balls % 6 == 0) {
+        if (state.asInningsRunning().balls  != 0 && state.asInningsRunning().balls % 6 == 0 && ball.isValidBall()) {
             state = state.asInningsRunning().copy(isOverCompleted = true)
         }
         if (state.asInningsRunning().balls == state.asInningsRunning().totalOvers * 6) {
@@ -311,16 +311,16 @@ class ScoreRecorderViewModel(
         return BattersStats(
             strikerStats = BatterStats(
                 batter = state.asInningsRunning().currentPlainStriker,
-                runs = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainStriker }.sumOf { it.score },
-                boundaries = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainStriker && it.score == 4 },
-                sixes = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainStriker && it.score == 6 },
+                runs = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainStriker && it !is Ball.WideBall }.sumOf { it.score },
+                boundaries = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainStriker && it.score == 4 && it !is Ball.WideBall },
+                sixes = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainStriker && it.score == 6 && it !is Ball.WideBall },
                 ballsFaced = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainStriker && it.isValidBall() }
             ),
             nonStrikerStats = BatterStats(
                 batter = state.asInningsRunning().currentPlainNonStriker,
-                runs = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainNonStriker }.sumOf { it.score },
-                boundaries = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it.score == 4 },
-                sixes = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it.score == 6 },
+                runs = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it !is Ball.WideBall }.sumOf { it.score },
+                boundaries = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it.score == 4 && it !is Ball.WideBall },
+                sixes = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it.score == 6 && it !is Ball.WideBall },
                 ballsFaced = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it.isValidBall() }
             ),
         )
