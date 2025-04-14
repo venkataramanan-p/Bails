@@ -80,6 +80,7 @@ fun ScoreRecorderScreen(
     onStartNextOver: (bowlerId: Long?, bowlerName: String?) -> Unit,
     goBack: () -> Unit,
     onToggleStrike: () -> Unit,
+    onChangeBowler: (bowlerId: Long?, bowlerName: String?) -> Unit,
     onRetiredHurt: (Long, newBatterName: String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -93,13 +94,20 @@ fun ScoreRecorderScreen(
     var nextBowlerSelectionBottomSheetState = rememberModalBottomSheetState()
     var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
     var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
+    var isChangingBowler by rememberSaveable { mutableStateOf(false) }
 
     if (showNextBowlerSelecttionBottomSheet) {
         SelectNextBowlerBottomSheet(
             sheetState = nextBowlerSelectionBottomSheetState,
             bowlers = (state as ScoreRecorderScreenState.InningsRunning).allOvers.map { it.balls }.flatten().map { it.bowler }.toSet().toList(),
             onBowlerSelected = {
-                onStartNextOver(it, null)
+                if(isChangingBowler) {
+                    onChangeBowler(it, null)
+                    isChangingBowler = false
+                } else {
+                    onStartNextOver(it, null)
+                }
+
                 showNextBowlerSelecttionBottomSheet = false
             },
             onAddNewBowler = {
@@ -125,7 +133,12 @@ fun ScoreRecorderScreen(
                     enterPlayerNameBottomSheetState.hide()
                 }.invokeOnCompletion {
                     showEnterPlayerNameBottomSheet = false
-                    onStartNextOver(null, newBowlerName)
+                    if (isChangingBowler) {
+                        onChangeBowler(null, newBowlerName)
+                        isChangingBowler = false
+                    } else {
+                        onStartNextOver(null, newBowlerName)
+                    }
                 }
             },
             onDismiss = {
@@ -211,6 +224,10 @@ fun ScoreRecorderScreen(
                     currentBowler = state.currentBowler,
                     onToggleStrike = onToggleStrike,
                     onRetiredHurt = onRetiredHurt,
+                    onChangeBowler = {
+                        isChangingBowler = true
+                        showNextBowlerSelecttionBottomSheet = true
+                    },
                     modifier = Modifier.padding(top = 8.dp),
                 )
                 BallsHistory(state.allOvers)
@@ -220,7 +237,8 @@ fun ScoreRecorderScreen(
 }
 
 @Composable
-fun BowlerStats(stats: BowlerStats) {
+fun BowlerStats(stats: BowlerStats, onChangeBowler: () -> Unit) {
+    var showBowlerOptions by rememberSaveable { mutableStateOf(false) }
     Row(modifier = Modifier
         .padding(horizontal = 8.dp)
         .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
@@ -228,7 +246,13 @@ fun BowlerStats(stats: BowlerStats) {
     ) {
         Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
             Text("Name", style = MaterialTheme.typography.bodySmall)
-            Text(stats.bowler.name, modifier = Modifier.padding(vertical = 8.dp))
+            Text(stats.bowler.name, modifier = Modifier.clickable { showBowlerOptions = !showBowlerOptions }.padding(vertical = 8.dp))
+            AnimatedVisibility(showBowlerOptions) {
+                ChangeBowlerButton(onClick = {
+                    showBowlerOptions = false
+                    onChangeBowler()
+                })
+            }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
             Text("O", style = MaterialTheme.typography.bodySmall)
@@ -398,6 +422,21 @@ fun ChangeStrikerButton(onClick: () -> Unit) {
 fun RetiredHurtButton(onClick: () -> Unit) {
     Text(
         text = "Retired Hurt",
+        color = MaterialTheme.colorScheme.onPrimary,
+        modifier = Modifier
+            .padding(bottom = 8.dp)
+            .padding(horizontal = 8.dp)
+            .clip(shape = RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.error)
+            .clickable{ onClick() }
+            .padding(4.dp),
+    )
+}
+
+@Composable
+fun ChangeBowlerButton(onClick: () -> Unit) {
+    Text(
+        text = "Change",
         color = MaterialTheme.colorScheme.onPrimary,
         modifier = Modifier
             .padding(bottom = 8.dp)
@@ -658,6 +697,7 @@ fun ScoreRecorder(
     recordBall: (Ball) -> Unit,
     onToggleStrike: () -> Unit,
     onRetiredHurt: (Long, newBatterName: String) -> Unit,
+    onChangeBowler: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var currentBall: BallType? by rememberSaveable { mutableStateOf(null) }
@@ -727,7 +767,7 @@ fun ScoreRecorder(
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(8.dp)
         )
-        BowlerStats(stats = state.bowlersStats)
+        BowlerStats(stats = state.bowlersStats, onChangeBowler = onChangeBowler)
         Row(modifier = modifier.fillMaxWidth().height(100.dp).padding(horizontal = 12.dp)) {
             AnimatedVisibility(visible = currentBall == null) {
                 FlowRow(

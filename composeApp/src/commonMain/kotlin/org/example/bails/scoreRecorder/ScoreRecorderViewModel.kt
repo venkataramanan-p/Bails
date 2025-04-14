@@ -7,8 +7,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import kotlinx.datetime.Clock
 import org.example.bails.util.roundToDecimals
-import kotlin.math.min
-import kotlin.math.roundToInt
 
 class ScoreRecorderViewModel(
     private val savedStateHandle: SavedStateHandle
@@ -75,10 +73,8 @@ class ScoreRecorderViewModel(
                 var isStrikerOut = false
                 if (ball.outPlayerId == (state as ScoreRecorderScreenState.InningsRunning).currentPlainStriker.id) {
                     isStrikerOut = true
-//                    (state as ScoreRecorderScreenState.InningsRunning).currentPlainStriker
                 } else {
                     isStrikerOut = false
-//                    (state as ScoreRecorderScreenState.InningsRunning).currentPlainNonStriker
                 }
 //                battersHistory.add(outPlayer)
 
@@ -87,6 +83,8 @@ class ScoreRecorderViewModel(
                     score = inningsRunningState.score + ball.score,
                     balls = inningsRunningState.balls + 1,
                     allOvers = updateAllOversList(ball),
+                    currentPlainStriker = if(isStrikerOut) PlainBatter(Clock.System.now().toEpochMilliseconds(), ball.newPlayerName) else state.asInningsRunning().currentPlainStriker,
+                    currentPlainNonStriker = if(isStrikerOut) state.asInningsRunning().currentPlainNonStriker else PlainBatter(Clock.System.now().toEpochMilliseconds(), ball.newPlayerName),
                 )
             }
             is Ball.NoBall, is Ball.WideBall -> {
@@ -96,7 +94,15 @@ class ScoreRecorderViewModel(
                 )
             }
         }
-        if (state.asInningsRunning().balls % 6 == 0) {
+
+        if (isStrikeChanged) {
+            state = state.asInningsRunning().copy(
+                currentPlainStriker = inningsRunningState.currentPlainNonStriker,
+                currentPlainNonStriker = inningsRunningState.currentPlainStriker
+            )
+        }
+
+        if (state.asInningsRunning().balls  != 0 && state.asInningsRunning().balls % 6 == 0) {
             state = state.asInningsRunning().copy(isOverCompleted = true)
         }
         if (state.asInningsRunning().balls == state.asInningsRunning().totalOvers * 6) {
@@ -109,7 +115,10 @@ class ScoreRecorderViewModel(
                 )
             )
         }
-        state = state.asInningsRunning().copy(bowlersStats = getCurrentBowlerStats())
+        state = state.asInningsRunning().copy(
+            bowlersStats = getCurrentBowlerStats(),
+            battersStats = getBattersStats()
+        )
     }
 
     fun startNextOver(bowlerId: Long?, bowlerName: String?) {
@@ -194,22 +203,33 @@ class ScoreRecorderViewModel(
         val currentNonStriker = state.asInningsRunning().currentPlainNonStriker
         state = (state as ScoreRecorderScreenState.InningsRunning).copy(
             currentPlainStriker = currentNonStriker,
-            currentPlainNonStriker = currentStriker
+            currentPlainNonStriker = currentStriker,
+            battersStats = state.asInningsRunning().battersStats.copy(
+                strikerStats = state.asInningsRunning().battersStats.nonStrikerStats,
+                nonStrikerStats = state.asInningsRunning().battersStats.strikerStats,
+            )
         )
     }
 
     fun onRetiredHurt(batterId: Long, newBatterName: String) {
         val currentStriker = state.asInningsRunning().currentPlainStriker
         val currentNonStriker = state.asInningsRunning().currentPlainNonStriker
+        val newBatter = PlainBatter(Clock.System.now().toEpochMilliseconds(), name = newBatterName)
         if (currentStriker.id == batterId) {
             state = state.asInningsRunning().copy(
-                currentPlainStriker = PlainBatter(Clock.System.now().toEpochMilliseconds(), name = newBatterName),
-                currentPlainNonStriker = currentNonStriker
+                currentPlainStriker = newBatter,
+                currentPlainNonStriker = currentNonStriker,
+                battersStats = state.asInningsRunning().battersStats.copy(
+                    strikerStats = BatterStats(batter = newBatter)
+                ),
             )
         } else if (currentNonStriker.id == batterId) {
             state = state.asInningsRunning().copy(
                 currentPlainStriker = currentStriker,
-                currentPlainNonStriker = PlainBatter(Clock.System.now().toEpochMilliseconds(), name = newBatterName)
+                currentPlainNonStriker = PlainBatter(Clock.System.now().toEpochMilliseconds(), name = newBatterName),
+                battersStats = state.asInningsRunning().battersStats.copy(
+                    nonStrikerStats = BatterStats(batter = newBatter)
+                ),
             )
         }
     }
@@ -222,18 +242,67 @@ class ScoreRecorderViewModel(
         val currentBowler = state.asInningsRunning().currentBowler
         val oversByBowler = state.asInningsRunning().allOvers
             .filter { it.balls.any { it.bowler == currentBowler } }
-        val oversBowled = (((oversByBowler.size - 1) + (oversByBowler.last().balls.filter { it.isValidBall() }.size * 0.1)).toFloat())
-            .let { if (it % 1 == 0.6f) (it.toInt() + 1).toFloat() else it }
-        val maidenOvers = oversByBowler.filter { it.balls.isNotEmpty() && it.balls.all { ball -> ball.score == 0 && ball.bowler == currentBowler } }.size
-        val runsGiven = oversByBowler.sumOf { it.balls.sumOf { ball -> if (!ball.isValidBall()) ball.score + 1 else ball.score } }
-        val economy = if (oversBowled > 0) {
-            (runsGiven * 6.0 / (oversByBowler.map { it.balls }.flatten().filter { it.isValidBall() }.size.toFloat())).toFloat().roundToDecimals(2)
+        val oversBowled = getTheNumberOfOversBowledByTheBowler(oversByBowler, currentBowler)
+        val maidenOvers = getMaidenOversBowledByTheBowler(oversByBowler, currentBowler)
+        val runsGiven = getRunsGivenByABowler(oversByBowler, currentBowler)
+        val economy = getEconomyOfABowler(oversByBowler, currentBowler)
+        val wicketsTaken = oversByBowler.flatMap { it.balls }.filter { it.bowler == currentBowler }.count { it is Ball.Wicket }
+
+        return BowlerStats(currentBowler, oversBowled, maidenOvers, runsGiven, wicketsTaken, economy)
+    }
+
+    fun onChangeBowler(bowlerId: Long?, name: String?) {
+        val nextBowler = bowlerId?.let { bowlerId ->
+            (state as ScoreRecorderScreenState.InningsRunning).allOvers
+                .map { it.balls }.flatten()
+                .find { it.bowler.id == bowlerId }?.bowler
+        } ?: name?.let {
+            Bowler(
+                id = Clock.System.now().toEpochMilliseconds(),
+                name = it
+            )
+        } ?: Bowler(
+            id = Clock.System.now().toEpochMilliseconds(),
+            name = "Unnamed Player"
+        )
+        state = state.asInningsRunning().copy(
+            currentBowler = nextBowler,
+        )
+        state = state.asInningsRunning().copy(
+            bowlersStats = getCurrentBowlerStats()
+        )
+    }
+
+    private fun getTheNumberOfOversBowledByTheBowler(oversByBowler: List<Over>, currentBowler: Bowler): Float {
+        return if (oversByBowler.isEmpty()) {
+                    0f
+        } else {
+            val totalValidBallsBowled = oversByBowler.flatMap { it.balls }.filter { it.isValidBall() && it.bowler == currentBowler }.size
+            val overs = totalValidBallsBowled / 6
+            val balls = totalValidBallsBowled % 6
+            return overs + balls * 0.1f
+        }
+    }
+
+    private fun getMaidenOversBowledByTheBowler(oversByBowler: List<Over>, bowler: Bowler): Int {
+        return oversByBowler.count {
+            it.balls.isNotEmpty() && it.balls.all { ball -> ball.score == 0 && ball.bowler == bowler }
+        }
+    }
+
+    private fun getRunsGivenByABowler(oversByBowler: List<Over>, bowler: Bowler): Int {
+        return oversByBowler.flatMap { it.balls }.filter { it.bowler == bowler }.sumOf { ball -> if (!ball.isValidBall()) ball.score + 1 else ball.score }
+    }
+
+    private fun getEconomyOfABowler(oversByBowler: List<Over>, bowler: Bowler): Float {
+        val oversBowled = getTheNumberOfOversBowledByTheBowler(oversByBowler, bowler)
+        val runsGiven = getRunsGivenByABowler(oversByBowler, bowler)
+
+        return if (oversBowled > 0) {
+            (runsGiven * 6.0 / (oversByBowler.flatMap { it.balls }.count { it.isValidBall() && it.bowler == bowler }.toFloat())).toFloat().roundToDecimals(2)
         } else {
             0f
         }
-        val wicketsTaken = oversByBowler.sumOf { it.balls.count { ball -> ball is Ball.Wicket } }
-
-        return BowlerStats(currentBowler, oversBowled, maidenOvers, runsGiven, wicketsTaken, economy)
     }
 
     fun getBattersStats(): BattersStats {
@@ -243,16 +312,16 @@ class ScoreRecorderViewModel(
             strikerStats = BatterStats(
                 batter = state.asInningsRunning().currentPlainStriker,
                 runs = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainStriker }.sumOf { it.score },
-                boundaries = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainStriker }.count { it.score == 4 },
-                sixes = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainStriker }.count { it.score == 6 },
-                ballsFaced = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainStriker }.count { it.score == 4 }
+                boundaries = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainStriker && it.score == 4 },
+                sixes = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainStriker && it.score == 6 },
+                ballsFaced = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainStriker && it.isValidBall() }
             ),
             nonStrikerStats = BatterStats(
                 batter = state.asInningsRunning().currentPlainNonStriker,
                 runs = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainNonStriker }.sumOf { it.score },
-                boundaries = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainNonStriker }.count { it.score == 4 },
-                sixes = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainNonStriker }.count { it.score == 6 },
-                ballsFaced = allBalls.filter { it.iStriker == state.asInningsRunning().currentPlainNonStriker }.count { it.score == 4 }
+                boundaries = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it.score == 4 },
+                sixes = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it.score == 6 },
+                ballsFaced = allBalls.count { it.iStriker == state.asInningsRunning().currentPlainNonStriker && it.isValidBall() }
             ),
         )
     }

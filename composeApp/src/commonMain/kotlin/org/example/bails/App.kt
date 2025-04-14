@@ -52,7 +52,8 @@ fun App() {
                 onStartNextOver = viewmodel::startNextOver,
                 goBack = navController::navigateUp,
                 onToggleStrike = viewmodel::toggleStrike,
-                onRetiredHurt = viewmodel::onRetiredHurt
+                onRetiredHurt = viewmodel::onRetiredHurt,
+                onChangeBowler = viewmodel::onChangeBowler
             )
         }
     }
