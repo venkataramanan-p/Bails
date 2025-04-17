@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import kotlinx.datetime.Clock
 import org.example.bails.data.BailsDb
 import org.example.bails.data.Inning
+import org.example.bails.util.isValidBall
 import org.example.bails.util.roundToDecimals
 
 class ScoreRecorderViewModel(
@@ -24,7 +25,7 @@ class ScoreRecorderViewModel(
     val initialStriker = Batter(id = timeNowInMillis, strikerName)
     val initialNonStriker = Batter(id = timeNowInMillis + 1, nonStrikerName)
     val initialBowler = Bowler(id = timeNowInMillis + 2, bowlerName)
-    var matchId: Long? = null
+    val matchId: Long = Clock.System.now().toEpochMilliseconds()
 
     var state: ScoreRecorderScreenState by mutableStateOf(
         ScoreRecorderScreenState.InningsRunning(
@@ -112,7 +113,7 @@ class ScoreRecorderViewModel(
             bowlersStats = getCurrentBowlerStats(),
             battersStats = getBattersStats()
         )
-        matchId = BailsDb.updateMatchSummary(matchId, Inning(state.asInningsRunning().allOvers))
+        BailsDb.updateMatchSummary(matchId, Inning(state.asInningsRunning().allOvers))
         if (state.asInningsRunning().balls == state.asInningsRunning().totalOvers * 6) {
             state = ScoreRecorderScreenState.InningsBreak(
                 previousInningsSummary = InningsSummary(
@@ -333,9 +334,4 @@ class ScoreRecorderViewModel(
         )
     }
 
-    private fun Ball.isValidBall(): Boolean {
-        return this is Ball.CorrectBall ||
-                this is Ball.DotBall ||
-                this is Ball.Wicket
-    }
 }

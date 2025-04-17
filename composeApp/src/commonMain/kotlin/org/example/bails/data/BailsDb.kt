@@ -10,10 +10,8 @@ data class Inning(
 object BailsDb {
     private val matchSummaries: MutableMap<Long, Inning> = mutableMapOf()
 
-    fun updateMatchSummary(matchId: Long?, inning: Inning): Long {
-        val matchId = matchId ?: Clock.System.now().toEpochMilliseconds()
+    fun updateMatchSummary(matchId: Long, inning: Inning) {
         matchSummaries[matchId] = inning
-        return matchId
     }
 
     fun getMatchSummary(matchId: Long): Inning? {

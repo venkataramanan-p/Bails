@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -231,6 +232,7 @@ fun ScoreRecorderScreen(
                         isChangingBowler = true
                         showNextBowlerSelecttionBottomSheet = true
                     },
+                    navigateToScoreBoardScreen = navigateToScoreBoard,
                     modifier = Modifier.padding(top = 8.dp),
                 )
                 BallsHistory(state.allOvers)
@@ -809,6 +811,7 @@ fun ScoreRecorder(
     onToggleStrike: () -> Unit,
     onRetiredHurt: (Long, newBatterName: String) -> Unit,
     onChangeBowler: () -> Unit,
+    navigateToScoreBoardScreen: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var currentBall: BallType? by rememberSaveable { mutableStateOf(null) }
@@ -859,20 +862,21 @@ fun ScoreRecorder(
     }
 
     Column {
-        Row(modifier = Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.Center) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 "Batters",
                 style = MaterialTheme.typography.titleSmall,
             )
-            TextButton(onClick = {}) {
-                Row {
-                    Text("Score Board")
-                    Icon(
-                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Arrow",
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
+            TextButton(onClick = navigateToScoreBoardScreen) {
+                Text("Score Board")
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Arrow",
+                )
             }
         }
         Batters(
