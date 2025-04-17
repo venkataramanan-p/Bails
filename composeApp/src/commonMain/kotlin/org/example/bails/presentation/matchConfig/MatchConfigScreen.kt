@@ -1,6 +1,5 @@
-package org.example.bails.matchConfig
+package org.example.bails.presentation.matchConfig
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth

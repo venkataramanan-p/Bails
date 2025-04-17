@@ -1,4 +1,6 @@
-package org.example.bails.scoreRecorder
+package org.example.bails.presentation.scoreRecorder
+
+import org.example.bails.data.Inning
 
 sealed interface ScoreRecorderScreenState {
 
@@ -61,8 +63,52 @@ data class InningsSummary(
     val score: Int,
     val wickets: Int,
     val overs: Float,
-    val allOvers: List<Over>
+    val allOvers: List<Over>,
+    val allBattersStats: List<BatterStats>,
+    val allBowlerStats: List<BowlerStats>
 )
+
+fun Inning.toInningsSummary(): InningsSummary {
+    val allBattersStats = mutableListOf<BatterStats>()
+    val allBowlerStats = mutableListOf<BowlerStats>()
+    var totalRuns = 0
+    var totalWickets = 0
+    var totalOvers = 0f
+
+    for (over in overs) {
+        for (ball in over.balls) {
+            when (ball) {
+                is Ball.CorrectBall -> {
+                    totalRuns += ball.runs
+                    totalOvers += 1f / overs.size
+                }
+                is Ball.Wicket -> {
+                    totalWickets += 1
+                    totalRuns += ball.runs
+                }
+                is Ball.WideBall -> {
+                    totalRuns += ball.runs + 1
+                }
+                is Ball.NoBall -> {
+                    totalRuns += ball.runs + 1
+                }
+                is Ball.DotBall -> {
+                    // Do nothing for dot balls
+                }
+            }
+        }
+    }
+
+    // Create the summary object
+    return InningsSummary(
+        score = totalRuns,
+        wickets = totalWickets,
+        overs = totalOvers,
+        allOvers = overs,
+        allBattersStats = allBattersStats,
+        allBowlerStats = allBowlerStats
+    )
+}
 
 enum class BallType(val displayStr: String) {
     CORRECT_BALL("Correct Ball"),

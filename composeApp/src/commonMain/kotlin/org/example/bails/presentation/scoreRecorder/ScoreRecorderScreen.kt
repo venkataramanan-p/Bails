@@ -1,4 +1,4 @@
-package org.example.bails.scoreRecorder
+package org.example.bails.presentation.scoreRecorder
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
@@ -82,6 +84,7 @@ fun ScoreRecorderScreen(
     onToggleStrike: () -> Unit,
     onChangeBowler: (bowlerId: Long?, bowlerName: String?) -> Unit,
     onRetiredHurt: (Long, newBatterName: String) -> Unit,
+    navigateToScoreBoard: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // todo: interrupt back press and show confirmation dialog
@@ -536,9 +539,117 @@ fun InningsBreak(previousInningsSummary: InningsSummary, onStartNextInnings: () 
                 text = "Overs: ${previousInningsSummary.overs}",
                 modifier = Modifier.padding(8.dp)
             )
+            Text(
+                "Batters",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(8.dp),
+            )
+            BattersStats(
+                allBattersStats = previousInningsSummary.allBattersStats
+            )
         }
+        Text(
+            "Bowlers",
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(8.dp),
+        )
+        BowlersStats(
+            allBowlerStats = previousInningsSummary.allBowlerStats
+        )
         Button(onClick = onStartNextInnings) {
             Text("Start Next innings")
+        }
+    }
+}
+
+@Composable
+fun BowlersStats(allBowlerStats: List<BowlerStats>) {
+    Row(modifier = Modifier
+        .padding(horizontal = 8.dp)
+        .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+        .padding(top = 8.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
+            Text("Name", style = MaterialTheme.typography.bodySmall)
+            allBowlerStats.forEach {
+                Text(it.bowler.name, modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("O", style = MaterialTheme.typography.bodySmall)
+            allBowlerStats.forEach {
+                Text("${it.overs}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("M", style = MaterialTheme.typography.bodySmall)
+            allBowlerStats.forEach {
+                Text("${it.maidenOvers}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("R", style = MaterialTheme.typography.bodySmall)
+            allBowlerStats.forEach {
+                Text("${it.runs}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("W", style = MaterialTheme.typography.bodySmall)
+            allBowlerStats.forEach {
+                Text("${it.wickets}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Econ", style = MaterialTheme.typography.bodySmall)
+            allBowlerStats.forEach {
+                Text("${it.economy}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun BattersStats(allBattersStats: List<BatterStats>, modifier: Modifier = Modifier) {
+    Row(modifier = modifier
+        .padding(horizontal = 8.dp)
+        .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+        .padding(top = 8.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
+            Text("Name", style = MaterialTheme.typography.bodySmall)
+            allBattersStats.forEach {
+                Text(it.batter.name, modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("R", style = MaterialTheme.typography.bodySmall)
+            allBattersStats.forEach {
+                Text("${it.runs}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("B", style = MaterialTheme.typography.bodySmall)
+            allBattersStats.forEach {
+                Text("${it.ballsFaced}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("4s", style = MaterialTheme.typography.bodySmall)
+            allBattersStats.forEach {
+                Text("${it.boundaries}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("6s", style = MaterialTheme.typography.bodySmall)
+            allBattersStats.forEach {
+                Text("${it.sixes}", modifier = Modifier.padding(vertical = 8.dp))
+            }
+        }
+        Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("S/R", style = MaterialTheme.typography.bodySmall)
+            allBattersStats.forEach {
+                Text("${it.getStrikeRate()}", modifier = Modifier.padding(vertical = 8.dp))
+            }
         }
     }
 }
@@ -748,11 +859,22 @@ fun ScoreRecorder(
     }
 
     Column {
-        Text(
-            "Batters",
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(8.dp),
-        )
+        Row(modifier = Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.Center) {
+            Text(
+                "Batters",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            TextButton(onClick = {}) {
+                Row {
+                    Text("Score Board")
+                    Icon(
+                        Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Arrow",
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
+            }
+        }
         Batters(
             player1 = state.battersStats.strikerStats,
             player2 = state.battersStats.nonStrikerStats,
