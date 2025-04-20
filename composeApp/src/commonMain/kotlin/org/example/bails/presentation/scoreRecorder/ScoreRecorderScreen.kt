@@ -163,19 +163,23 @@ fun ScoreRecorderScreen(
         )
     }
 
+    if (state is ScoreRecorderScreenState.InningsRunning && state.doesWonMatch) {
+        MatchWonAlert(
+            navigateToScoreBoard = {
+                navigateToScoreBoard
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text("Bails")
-                },
+                title = { Text("Bails") },
                 actions = {
                     if (state is ScoreRecorderScreenState.InningsRunning) {
-                        IconButton(
-                            onClick = { showUndoConfirmAlert = true }
-                        ) {
+                        IconButton(onClick = { showUndoConfirmAlert = true }) {
                             Icon(
-                                Icons.Filled.Refresh,
+                                imageVector = Icons.Filled.Refresh,
                                 contentDescription = "Reset",
                                 modifier = Modifier.scale(-1f, 1f)
                             )
@@ -214,6 +218,9 @@ fun ScoreRecorderScreen(
                     )
                 }
 
+                if (!state.asInningsRunning().isFirstInning) {
+                    TargetScoreUI(state.asInningsRunning().targetScore ?: 0)
+                }
                 ScoreDisplay(score = state.score, wickets = state.wickets)
                 OversAndWickets(
                     balls = state.balls,
@@ -238,6 +245,13 @@ fun ScoreRecorderScreen(
                 BallsHistory(state.allOvers)
             }
         }
+    }
+}
+
+@Composable
+fun TargetScoreUI(target: Int) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+        Text("Target $target", style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -324,6 +338,36 @@ fun EnterPlayerNameBottomSheet(
                 modifier = Modifier.padding(horizontal = 8.dp)
             ) {
                 Text("Set")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MatchWonAlert(navigateToScoreBoard: () -> Unit) {
+    BasicAlertDialog(onDismissRequest = {}) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(vertical = 16.dp)
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_ball),
+                contentDescription = "Match won icon",
+                modifier = Modifier
+                    .size(100.dp)
+                    .padding(top = 16.dp)
+            )
+            Text(
+                text = "Match won!!!",
+                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+            Button(onClick = navigateToScoreBoard) {
+                Text("Go to ScoreBoard")
             }
         }
     }

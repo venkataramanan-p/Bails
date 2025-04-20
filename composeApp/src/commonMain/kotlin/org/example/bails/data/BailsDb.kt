@@ -8,13 +8,22 @@ data class Inning(
 )
 
 object BailsDb {
-    private val matchSummaries: MutableMap<Long, Inning> = mutableMapOf()
+    private val matchSummaries: MutableMap<Long, Pair<Inning, Inning>> = mutableMapOf()
 
-    fun updateMatchSummary(matchId: Long, inning: Inning) {
-        matchSummaries[matchId] = inning
+    fun updateMatchSummary(matchId: Long, isFirstInning: Boolean, inning: Inning) {
+        if (isFirstInning) {
+            matchSummaries[matchId] = Pair(inning, matchSummaries[matchId]?.second ?: Inning(emptyList()))
+        } else {
+            val existingInning = matchSummaries[matchId]?.first
+            if (existingInning != null) {
+                matchSummaries[matchId] = Pair(existingInning, inning)
+            } else {
+                matchSummaries[matchId] = Pair(Inning(emptyList()), inning)
+            }
+        }
     }
 
-    fun getMatchSummary(matchId: Long): Inning? {
+    fun getMatchSummary(matchId: Long): Pair<Inning, Inning>? {
         return matchSummaries[matchId]
     }
 

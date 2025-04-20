@@ -19,13 +19,18 @@ class ScoreRecorderViewModel(
     private val strikerName = (savedStateHandle["strikerName"] as? String).takeIf { it?.isNotBlank() == true } ?: "Unnamed player"
     private val nonStrikerName = (savedStateHandle["nonStrikerName"] as? String).takeIf { it?.isNotBlank() == true } ?: "Unnamed player"
     private val bowlerName = (savedStateHandle["bowlerName"] as? String).takeIf { it?.isNotBlank() == true } ?: "Unnamed Player"
+    val matchId = savedStateHandle["matchId"] ?: Clock.System.now().toEpochMilliseconds()
+    val isFirstInning = savedStateHandle.get<Long>("matchId") == null
+
+    init  {
+        println("matchId: $matchId ${savedStateHandle.get<Long>("matchId")}")
+    }
 
     var previousBallState: ScoreRecorderScreenState.InningsRunning? = null
     val timeNowInMillis = Clock.System.now().toEpochMilliseconds()
     val initialStriker = Batter(id = timeNowInMillis, strikerName)
     val initialNonStriker = Batter(id = timeNowInMillis + 1, nonStrikerName)
     val initialBowler = Bowler(id = timeNowInMillis + 2, bowlerName)
-    val matchId: Long = Clock.System.now().toEpochMilliseconds()
 
     var state: ScoreRecorderScreenState by mutableStateOf(
         ScoreRecorderScreenState.InningsRunning(
@@ -48,7 +53,9 @@ class ScoreRecorderViewModel(
             battersStats = BattersStats(
                 strikerStats = BatterStats(batter = PlainBatter(id = initialStriker.id, strikerName)),
                 nonStrikerStats = BatterStats(batter = PlainBatter(id = initialNonStriker.id, nonStrikerName))
-            )
+            ),
+            isFirstInning = isFirstInning,
+            targetScore = BailsDb.getMatchSummary(matchId)?.first?.overs?.let { getTotalRuns(it) + 1 } ?: 0,
         )
     )
     private val battersHistory = mutableListOf<Batter>()
@@ -99,7 +106,11 @@ class ScoreRecorderViewModel(
             }
         }
 
-        if (isStrikeChanged) {
+        BailsDb.updateMatchSummary(matchId, isFirstInning, Inning(state.asInningsRunning().allOvers))
+
+        if (!state.asInningsRunning().isFirstInning && state.asInningsRunning().score >= state.asInningsRunning().targetScore) {
+            state = state.asInningsRunning().copy(doesWonMatch = true)
+        } else if (isStrikeChanged) {
             state = state.asInningsRunning().copy(
                 currentPlainStriker = state.asInningsRunning().currentPlainNonStriker,
                 currentPlainNonStriker = state.asInningsRunning().currentPlainStriker
@@ -113,7 +124,7 @@ class ScoreRecorderViewModel(
             bowlersStats = getCurrentBowlerStats(),
             battersStats = getBattersStats()
         )
-        BailsDb.updateMatchSummary(matchId, Inning(state.asInningsRunning().allOvers))
+
         if (state.asInningsRunning().balls == state.asInningsRunning().totalOvers * 6) {
             state = ScoreRecorderScreenState.InningsBreak(
                 previousInningsSummary = InningsSummary(
@@ -332,6 +343,12 @@ class ScoreRecorderViewModel(
             sixes = if (ball.score == 6) batter.sixes + 1 else batter.sixes,
             runs = batter.runs + ball.score,
         )
+    }
+
+    private fun getTotalRuns(overs: List<Over>): Int {
+        val allBalls = overs.map { it.balls }.flatten()
+        return allBalls.sumOf { it.score } +
+                allBalls.count { it is Ball.WideBall || it is Ball.NoBall }
     }
 
 }

@@ -20,34 +20,28 @@ class ScoreBoardScreenViewModel(
     savedStateHandle: SavedStateHandle
 ): ViewModel() {
 
-    private val matchId: Long = savedStateHandle["matchId"] ?: -1
+    val matchId: Long? = savedStateHandle["matchId"]
 
     var state by mutableStateOf<ScoreBoardScreenState>(ScoreBoardScreenState.Loading)
 
     init {
-        if (matchId == -1L) {
-            // Handle the case where matchId is not provided
-            // For example, you might want to throw an exception or log an error
-        } else {
-            // Load the match summary using the matchId
-            loadMatchSummary(matchId)
-        }
+        println("ScoreBoardScreeViewModel: matchId: $matchId")
+        matchId?.let { loadMatchSummary(matchId) }
     }
 
     private fun loadMatchSummary(matchId: Long) {
         val matchSummary = BailsDb.getMatchSummary(matchId)
         println("match summary: $matchSummary")
         matchSummary?.let {
-            val inningsSummary = matchSummary.toInningsSummary()
-            println("innings summary: $inningsSummary")
-            state = ScoreBoardScreenState.Success(inningsSummary)
+            val firstInnings = matchSummary.first.toInningsSummary()
+            val secondInnings = matchSummary.second.toInningsSummary()
+            println("innings summary: $firstInnings")
+            state = ScoreBoardScreenState.Success(firstInnings, secondInnings)
         }
     }
 }
 
 fun Inning.toInningsSummary(): InningsSummary {
-    val allBattersStats = mutableListOf<BatterStats>()
-    val allBowlerStats = mutableListOf<BowlerStats>()
     var totalRuns = 0
     var totalWickets = 0
     var totalOvers = 0f
