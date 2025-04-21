@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -166,7 +168,7 @@ fun ScoreRecorderScreen(
     if (state is ScoreRecorderScreenState.InningsRunning && state.doesWonMatch) {
         MatchWonAlert(
             navigateToScoreBoard = {
-                navigateToScoreBoard
+                navigateToScoreBoard()
             }
         )
     }
@@ -736,57 +738,56 @@ fun BallsHistory(overs: List<Over>, modifier: Modifier = Modifier) {
         ) {
             items(overs.size) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Over ${it + 1}")
+                    Text("Over ${it + 1}", modifier = Modifier.padding(bottom = 12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         overs[it].balls.forEach { ball ->
                             if (ball is Ball.CorrectBall) {
                                 Box(
+                                    contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(width = 2.dp, color = MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(12.dp))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .size(20.dp)
+                                        .border(width = 1.dp, color = MaterialTheme.colorScheme.onSurface)
                                 ) {
                                     Text(text = ball.score.toString())
                                 }
                             } else if (ball is Ball.Wicket) {
                                 Box(
+                                    contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(width = 2.dp, color = Color.Red, shape = RoundedCornerShape(12.dp))
+                                        .height(20.dp)
                                         .background(Color.Red.copy(alpha = 0.4f))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .padding(horizontal = 4.dp)
                                 ) {
                                     Text(text = "W - ${ball.score}")
                                 }
                             } else if (ball is Ball.NoBall) {
                                 Box(
+                                    contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(width = 2.dp, color = Color.Green, shape = RoundedCornerShape(12.dp))
+                                        .height(20.dp)
                                         .background(Color.Green.copy(alpha = 0.4f))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .padding(horizontal = 4.dp)
                                 ) {
                                     Text(text = "NB - ${ball.score}")
                                 }
                             } else if (ball is Ball.WideBall) {
                                 Box(
+                                    contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(width = 2.dp, color = Color.Green, shape = RoundedCornerShape(12.dp))
+                                        .height(20.dp)
                                         .background(Color.Green.copy(alpha = 0.4f))
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .padding(horizontal = 4.dp)
                                 ) {
                                     Text(text = "W - ${ball.score}")
                                 }
                             } else if (ball is Ball.DotBall) {
                                 Box(
+                                    contentAlignment = Alignment.Center,
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .border(width = 2.dp, color = Color.Gray, shape = RoundedCornerShape(12.dp))
-                                        .background(Color.LightGray)
-                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                        .size(20.dp)
+                                        .border(width = 1.dp, color = Color.Gray)
                                 ) {
-                                    Text(text = "0")
+                                    Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(Color.Green))
                                 }
                             }
                         }
@@ -797,7 +798,7 @@ fun BallsHistory(overs: List<Over>, modifier: Modifier = Modifier) {
                         Row(
                             modifier = Modifier
                                 .padding(top = 24.dp)
-                                .height(24.dp)
+                                .height(20.dp)
                                 .width(4.dp)
                                 .clip(RoundedCornerShape(50))
                                 .background(Color.LightGray)
@@ -1111,6 +1112,45 @@ fun ConfirmBackPressAlert(modifier: Modifier = Modifier, onCancel: () -> Unit, o
             }
         }
     )
+}
+
+@Composable
+fun ScoreRecorderBoard() {
+    Row {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row {
+                Column {
+                    Row {
+                        Text("0", modifier = Modifier.padding(12.dp))
+                        Text("1", modifier = Modifier.padding(12.dp))
+                        Text("2", modifier = Modifier.padding(12.dp))
+                    }
+                    Row {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("4")
+                            Text("FOUR")
+                        }
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("6")
+                            Text("SIX")
+                        }
+                    }
+                }
+            }
+            Row(modifier = Modifier.background(Color(165, 167, 169, 1))) {
+                Text("WD", modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+                Text("NB", modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+                Text("BYE", modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+                Text("LB", modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+            }
+        }
+        Column(modifier = Modifier.background(Color(165, 167, 169, 1))) {
+            Text("UNDO", modifier = Modifier.padding(12.dp))
+            Text("5, 7", modifier = Modifier.padding(12.dp))
+            Text("OUT", modifier = Modifier.padding(12.dp))
+            Text("LB", modifier = Modifier.padding(12.dp))
+        }
+    }
 }
 
 
