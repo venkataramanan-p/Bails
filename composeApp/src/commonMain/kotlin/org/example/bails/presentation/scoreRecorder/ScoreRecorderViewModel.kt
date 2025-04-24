@@ -61,6 +61,8 @@ class ScoreRecorderViewModel(
     private val battersHistory = mutableListOf<Batter>()
 
     fun recordBall(ball: Ball) {
+        println(">>> beforeRecord: allBalls: ${state.asInningsRunning().allOvers.map { it.balls }.flatten().map { it.score }}")
+
         previousBallState = state as ScoreRecorderScreenState.InningsRunning
         val isStrikeChanged = ball.score % 2 == 1
         val inningsRunningState = state as ScoreRecorderScreenState.InningsRunning
@@ -137,6 +139,8 @@ class ScoreRecorderViewModel(
                 )
             )
         }
+
+        println(">>> afterRecord: allBalls: ${state.asInningsRunning().allOvers.map { it.balls }.flatten().map { it.score }}")
     }
 
     fun getAllBattersStats(allOvers: List<Over>): List<BatterStats> {

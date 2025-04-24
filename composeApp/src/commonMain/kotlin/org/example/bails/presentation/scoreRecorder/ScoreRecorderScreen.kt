@@ -11,8 +11,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,14 +47,17 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -72,8 +78,11 @@ import androidx.compose.ui.unit.sp
 import bails.composeapp.generated.resources.Res
 import bails.composeapp.generated.resources.ic_ball
 import kotlinx.coroutines.launch
+import org.example.bails.BailsScreens
 import org.example.bails.util.roundToDecimals
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.ui.tooling.preview.Preview
+import kotlin.reflect.KClass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -229,6 +238,7 @@ fun ScoreRecorderScreen(
                     wickets = state.wickets,
                     modifier = Modifier.padding(vertical = 8.dp)
                 )
+                BallsHistory(state.allOvers)
                 ScoreRecorder(
                     state = state,
                     currentStriker = state.battersStats.strikerStats,
@@ -243,8 +253,8 @@ fun ScoreRecorderScreen(
                     },
                     navigateToScoreBoardScreen = navigateToScoreBoard,
                     modifier = Modifier.padding(top = 8.dp),
+                    onUndoLastBall = { undoLastBall() },
                 )
-                BallsHistory(state.allOvers)
             }
         }
     }
@@ -714,7 +724,7 @@ fun BallsHistory(overs: List<Over>, modifier: Modifier = Modifier) {
 
     Column(
         modifier = modifier
-            .padding(vertical = 12.dp)
+            .padding(vertical = 8.dp)
             .animateContentSize()
     ) {
         Text(
@@ -857,6 +867,7 @@ fun ScoreRecorder(
     onRetiredHurt: (Long, newBatterName: String) -> Unit,
     onChangeBowler: () -> Unit,
     navigateToScoreBoardScreen: () -> Unit,
+    onUndoLastBall: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var currentBall: BallType? by rememberSaveable { mutableStateOf(null) }
@@ -939,7 +950,26 @@ fun ScoreRecorder(
             modifier = Modifier.padding(8.dp)
         )
         BowlerStats(stats = state.bowlersStats, onChangeBowler = onChangeBowler)
-        Row(modifier = modifier.fillMaxWidth().height(100.dp).padding(horizontal = 12.dp)) {
+        HorizontalDivider(modifier = Modifier.padding(top = 12.dp))
+        ScoreRecorderBoard(
+            recordBall = { ballType, score ->
+                if (ballType == BallType.WICKET) {
+                    currentScore = score
+                    currentBall = BallType.WICKET
+                    showSelectOutPlayerSheet = true
+                } else {
+                    when(ballType) {
+                        BallType.WIDE -> recordBall(Ball.WideBall(score, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
+                        BallType.NO_BALL -> recordBall(Ball.NoBall(score, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
+                        BallType.DOT_BALL -> recordBall(Ball.DotBall(currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
+                        BallType.CORRECT_BALL -> recordBall(Ball.CorrectBall(score, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
+                        else -> Unit
+                    }
+                }
+            },
+            onUndoLastBall = onUndoLastBall
+        )
+        /*Row(modifier = modifier.fillMaxWidth().height(100.dp).padding(horizontal = 12.dp)) {
             AnimatedVisibility(visible = currentBall == null) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(12.dp, alignment = Alignment.CenterHorizontally),
@@ -987,7 +1017,7 @@ fun ScoreRecorder(
                     }
                 }
             }
-        }
+        }*/
     }
 
 }
@@ -1115,72 +1145,146 @@ fun ConfirmBackPressAlert(modifier: Modifier = Modifier, onCancel: () -> Unit, o
 }
 
 @Composable
-fun ScoreRecorderBoard() {
-    Row {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row {
-                Column {
-                    Row {
-                        Text("0", modifier = Modifier.padding(12.dp))
-                        Text("1", modifier = Modifier.padding(12.dp))
-                        Text("2", modifier = Modifier.padding(12.dp))
-                    }
-                    Row {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("4")
-                            Text("FOUR")
-                        }
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("6")
-                            Text("SIX")
-                        }
-                    }
+fun ScoreRecorderBoard(
+    recordBall: (ballType: BallType, score: Int) -> Unit,
+    onUndoLastBall: () -> Unit
+) {
+
+    var ball: BallType by rememberSaveable { mutableStateOf(BallType.CORRECT_BALL) }
+
+    fun recordScore(score: Int) {
+        if (score == 0 && ball == BallType.CORRECT_BALL) {
+            recordBall(BallType.DOT_BALL, score)
+        } else {
+            recordBall(ball, score)
+        }
+        ball = BallType.CORRECT_BALL
+    }
+
+    Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+        Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                Row(modifier = Modifier.weight(1f)) {
+                    RunBox("0", onClick = { recordScore(0) })
+                    RunBox("1", onClick = { recordScore(1) })
+                    RunBox("2", onClick = { recordScore(2) })
+                }
+                Row(modifier = Modifier.weight(1f)) {
+                    RunBox("3", onClick = { recordScore(3) })
+                    RunBox("4\nFour", onClick = { recordScore(4) })
+                    RunBox("6\nSIX", onClick = { recordScore(5) })
                 }
             }
-            Row(modifier = Modifier.background(Color(165, 167, 169, 1))) {
-                Text("WD", modifier = Modifier.weight(1f).padding(vertical = 12.dp))
-                Text("NB", modifier = Modifier.weight(1f).padding(vertical = 12.dp))
-                Text("BYE", modifier = Modifier.weight(1f).padding(vertical = 12.dp))
-                Text("LB", modifier = Modifier.weight(1f).padding(vertical = 12.dp))
+            Row(modifier = Modifier.fillMaxWidth().background(Color.Gray.copy(alpha = 0.1f))) {
+                BallTypeBox(
+                    text = "WD",
+                    onClick = { ball = BallType.WIDE},
+                    isSelected = ball == BallType.WIDE
+                )
+                BallTypeBox(
+                    text = "NB",
+                    onClick = { ball = BallType.NO_BALL },
+                    isSelected = ball == BallType.NO_BALL
+                )
+                BallTypeBox(
+                    text = "BYE",
+                    onClick = { },
+                    isSelected = false
+                )
             }
         }
-        Column(modifier = Modifier.background(Color(165, 167, 169, 1))) {
-            Text("UNDO", modifier = Modifier.padding(12.dp))
-            Text("5, 7", modifier = Modifier.padding(12.dp))
-            Text("OUT", modifier = Modifier.padding(12.dp))
-            Text("LB", modifier = Modifier.padding(12.dp))
+        Column(
+            modifier = Modifier
+                .width(IntrinsicSize.Max)
+                .background(Color.Gray.copy(alpha = 0.1f))
+        ) {
+            BallTypeBox("UNDO", textColor = Color.Blue, onClick = { onUndoLastBall() }, isSelected = false)
+            HorizontalDivider()
+            BallTypeBox("5, 7", onClick = {}, isSelected = false)
+            HorizontalDivider()
+            BallTypeBox(
+                "OUT",
+                textColor = Color.Red,
+                isSelected = ball == BallType.WICKET,
+                onClick = {
+                    ball = BallType.WICKET
+                }
+            )
+            HorizontalDivider()
+            BallTypeBox("LB", onClick = {}, isSelected = false)
         }
     }
 }
 
-
-fun groupBallsIntoOvers(balls: List<Ball>): List<List<Ball>> {
-    val overs = mutableListOf<List<Ball>>()
-    val currentOver = mutableListOf<Ball>()
-    var validBallCount = 0
-
-    for (ball in balls) {
-        currentOver.add(ball)
-
-        if (ball !is Ball.WideBall && ball !is Ball.NoBall) {
-            validBallCount++
-        }
-
-        if (validBallCount == 6) {
-            overs.add(currentOver.toList()) // Add completed over
-            currentOver.clear()
-            validBallCount = 0
-        }
+@Composable
+fun RowScope.BallTypeBox(text: String, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .clickable{ onClick() }
+            .then(
+                if (isSelected)
+                    Modifier.border(color = Color.Green, width = 1.dp)
+                else
+                    Modifier.border(color = Color.Gray.copy(alpha = 0.1f), width = 0.5.dp)
+            )
+            .weight(1f)
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text)
     }
-
-    if (currentOver.isNotEmpty()) {
-        overs.add(currentOver) // Add remaining balls (incomplete over)
-    }
-
-    return overs
 }
+
+@Composable
+fun ColumnScope.BallTypeBox(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    textColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isSelected)
+                    Modifier.border(color = Color.Green, width = 1.dp)
+                else
+                    Modifier
+            )
+            .clickable{ onClick() }
+            .padding(16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text, color = textColor)
+    }
+}
+
+@Composable
+fun RowScope.RunBox(runs: String, onClick: () -> Unit) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxHeight()
+            .clickable { onClick() }
+            .weight(1f)
+            .border(color = Color.Gray.copy(alpha = 0.2f), width = 1.dp)
+    ) {
+        Text(runs, textAlign = TextAlign.Center)
+    }
+}
+
 
 fun BatterStats.getStrikeRate(): Float {
     return if(this.ballsFaced == 0) 0f
-        else ((this.runs / this.ballsFaced.toFloat()) * 100f).roundToDecimals(2)
+    else ((this.runs / this.ballsFaced.toFloat()) * 100f).roundToDecimals(2)
+}
+
+@Preview
+@Composable
+fun ScoreRecorderBoardPreview() {
+    MaterialTheme(colorScheme = lightColorScheme()) {
+        Surface(modifier = Modifier.background(color = Color.White)) {
+            ScoreRecorderBoard(recordBall = {_, _ -> }, onUndoLastBall = {})
+        }
+    }
 }

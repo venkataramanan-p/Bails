@@ -1,7 +1,5 @@
 package org.example.bails.presentation.scoreRecorder
 
-import org.example.bails.data.Inning
-
 sealed interface ScoreRecorderScreenState {
 
     data class InningsRunning(
@@ -79,33 +77,33 @@ enum class BallType(val displayStr: String) {
     WICKET("Wicket")
 }
 
-sealed class Ball(val score: Int, val bowler: Bowler, val iStriker: PlainBatter, val iNonStriker: PlainBatter) {
+sealed class Ball(var score: Int, val bowler: Bowler, val iStriker: PlainBatter, val iNonStriker: PlainBatter) {
     data class CorrectBall(
         val runs: Int,
-        val assignedBower: Bowler,
+        val assignedBowler: Bowler,
         val striker: PlainBatter,
         val nonStriker: PlainBatter,
-    ) : Ball(runs, assignedBower, striker, nonStriker)
+    ) : Ball(runs, assignedBowler, striker, nonStriker)
 
     data class WideBall(
         val runs: Int = 1,
-        val assignedBower: Bowler,
+        val assignedBowler: Bowler,
         val striker: PlainBatter,
         val nonStriker: PlainBatter,
-    ) : Ball(runs, assignedBower, striker, nonStriker)
+    ) : Ball(runs, assignedBowler, striker, nonStriker)
 
     data class NoBall(
         val runs: Int = 1,
-        val assignedBower: Bowler,
+        val assignedBowler: Bowler,
         val striker: PlainBatter,
         val nonStriker: PlainBatter,
-    ) : Ball(runs, assignedBower, striker, nonStriker)
+    ) : Ball(runs, assignedBowler, striker, nonStriker)
 
     data class DotBall(
-        val assignedBower: Bowler,
+        val assignedBowler: Bowler,
         val striker: PlainBatter,
         val nonStriker: PlainBatter
-    ): Ball(0, assignedBower, striker, nonStriker)
+    ): Ball(0, assignedBowler, striker, nonStriker)
 
     data class Wicket(
         val runs: Int,
