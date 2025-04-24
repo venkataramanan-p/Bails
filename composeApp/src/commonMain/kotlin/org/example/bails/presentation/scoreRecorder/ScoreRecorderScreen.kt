@@ -162,16 +162,10 @@ fun ScoreRecorderScreen(
         )
     }
 
-    if (state is ScoreRecorderScreenState.InningsRunning && state.isOverCompleted) {
-        OverCompleted(
-            onUndoLastBall = {
-                undoLastBall()
-                showUndoConfirmAlert = false
-            },
-            onStartNextOver = {
-                showNextBowlerSelecttionBottomSheet = true
-            }
-        )
+    LaunchedEffect(state) {
+        if (state.asInningsRunning().isInningsCompleted) {
+            navigateToScoreBoard()
+        }
     }
 
     if (state is ScoreRecorderScreenState.InningsRunning && state.doesWonMatch) {
@@ -1172,7 +1166,7 @@ fun ScoreRecorderBoard(
                 Row(modifier = Modifier.weight(1f)) {
                     RunBox("3", onClick = { recordScore(3) })
                     RunBox("4\nFour", onClick = { recordScore(4) })
-                    RunBox("6\nSIX", onClick = { recordScore(5) })
+                    RunBox("6\nSIX", onClick = { recordScore(6) })
                 }
             }
             Row(modifier = Modifier.fillMaxWidth().background(Color.Gray.copy(alpha = 0.1f))) {

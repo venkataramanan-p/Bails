@@ -17,7 +17,8 @@ sealed interface ScoreRecorderScreenState {
         val bowlersStats: BowlerStats,
         val isFirstInning: Boolean,
         val targetScore: Int,
-        val doesWonMatch: Boolean = false
+        val doesWonMatch: Boolean = false,
+        val isInningsCompleted: Boolean = false
     ): ScoreRecorderScreenState
 
     data class InningsBreak(

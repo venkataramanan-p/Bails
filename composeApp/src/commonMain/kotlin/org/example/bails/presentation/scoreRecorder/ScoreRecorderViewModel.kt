@@ -128,19 +128,10 @@ class ScoreRecorderViewModel(
         )
 
         if (state.asInningsRunning().balls == state.asInningsRunning().totalOvers * 6) {
-            state = ScoreRecorderScreenState.InningsBreak(
-                previousInningsSummary = InningsSummary(
-                    score = state.asInningsRunning().score,
-                    wickets = state.asInningsRunning().wickets,
-                    overs = state.asInningsRunning().balls / 6f,
-                    allOvers = state.asInningsRunning().allOvers,
-                    allBattersStats = getAllBattersStats(state.asInningsRunning().allOvers),
-                    allBowlerStats = getAllBowlerStats(state.asInningsRunning().allOvers),
-                )
+            state = state.asInningsRunning().copy(
+                isInningsCompleted = true
             )
         }
-
-        println(">>> afterRecord: allBalls: ${state.asInningsRunning().allOvers.map { it.balls }.flatten().map { it.score }}")
     }
 
     fun getAllBattersStats(allOvers: List<Over>): List<BatterStats> {
