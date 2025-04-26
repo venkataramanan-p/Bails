@@ -168,6 +168,18 @@ fun ScoreRecorderScreen(
         }
     }
 
+    if (state is ScoreRecorderScreenState.InningsRunning && state.isOverCompleted) {
+        OverCompleted(
+            onUndoLastBall = {
+                undoLastBall()
+                showUndoConfirmAlert = false
+            },
+            onStartNextOver = {
+                showNextBowlerSelecttionBottomSheet = true
+            }
+        )
+    }
+
     if (state is ScoreRecorderScreenState.InningsRunning && state.doesWonMatch) {
         MatchWonAlert(
             navigateToScoreBoard = {
