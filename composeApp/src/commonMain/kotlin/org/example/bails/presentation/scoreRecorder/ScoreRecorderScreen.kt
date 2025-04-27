@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,12 +18,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,7 +28,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BasicAlertDialog
@@ -57,7 +52,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -78,11 +72,12 @@ import androidx.compose.ui.unit.sp
 import bails.composeapp.generated.resources.Res
 import bails.composeapp.generated.resources.ic_ball
 import kotlinx.coroutines.launch
-import org.example.bails.BailsScreens
+import org.example.bails.util.getBowlerStats
+import org.example.bails.util.getNumberOfWickets
+import org.example.bails.util.getRuns
 import org.example.bails.util.roundToDecimals
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import kotlin.reflect.KClass
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -113,6 +108,7 @@ fun ScoreRecorderScreen(
 
     if (showNextBowlerSelecttionBottomSheet) {
         SelectNextBowlerBottomSheet(
+            allOver = state.asInningsRunning().allOvers,
             sheetState = nextBowlerSelectionBottomSheetState,
             bowlers = (state as ScoreRecorderScreenState.InningsRunning).allOvers.map { it.balls }.flatten().map { it.bowler }.toSet().toList(),
             onBowlerSelected = {
@@ -176,7 +172,9 @@ fun ScoreRecorderScreen(
             },
             onStartNextOver = {
                 showNextBowlerSelecttionBottomSheet = true
-            }
+            },
+            runs = state.asInningsRunning().allOvers.last().getRuns(),
+            wickets = state.asInningsRunning().allOvers.last().getNumberOfWickets()
         )
     }
 
@@ -185,6 +183,16 @@ fun ScoreRecorderScreen(
             navigateToScoreBoard = {
                 navigateToScoreBoard()
             }
+        )
+    }
+
+    if (showUndoConfirmAlert) {
+        UndoConfirmationAlert(
+            onUndo = {
+                undoLastBall()
+                showUndoConfirmAlert = false
+            },
+            onCancel = {showUndoConfirmAlert = false}
         )
     }
 
@@ -225,15 +233,6 @@ fun ScoreRecorderScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                if (showUndoConfirmAlert) {
-                    UndoConfirmationAlert(
-                        onUndo = {
-                            undoLastBall()
-                            showUndoConfirmAlert = false
-                        },
-                        onCancel = {showUndoConfirmAlert = false}
-                    )
-                }
 
                 if (!state.asInningsRunning().isFirstInning) {
                     TargetScoreUI(state.asInningsRunning().targetScore ?: 0)
@@ -259,7 +258,7 @@ fun ScoreRecorderScreen(
                     },
                     navigateToScoreBoardScreen = navigateToScoreBoard,
                     modifier = Modifier.padding(top = 8.dp),
-                    onUndoLastBall = { undoLastBall() },
+                    onUndoLastBall = { showUndoConfirmAlert = true },
                 )
             }
         }
@@ -393,7 +392,7 @@ fun MatchWonAlert(navigateToScoreBoard: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OverCompleted(onStartNextOver: () -> Unit, onUndoLastBall: () -> Unit) {
+fun OverCompleted(onStartNextOver: () -> Unit, onUndoLastBall: () -> Unit, runs: Int, wickets: Int) {
     BasicAlertDialog(onDismissRequest = {}) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -414,6 +413,11 @@ fun OverCompleted(onStartNextOver: () -> Unit, onUndoLastBall: () -> Unit) {
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
+            Text(
+                text = "This over: $runs Runs - $wickets Wickets",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
             Button(onClick = onStartNextOver) {
                 Text("Start Next Over")
             }
@@ -427,6 +431,7 @@ fun OverCompleted(onStartNextOver: () -> Unit, onUndoLastBall: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SelectNextBowlerBottomSheet(
+    allOver: List<Over>,
     sheetState: SheetState,
     bowlers: List<Bowler>,
     onBowlerSelected: (bowlerId: Long) -> Unit,
@@ -434,39 +439,70 @@ fun SelectNextBowlerBottomSheet(
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        SelectNextBowlerUI(allOver, bowlers, onBowlerSelected, onAddNewBowler)
+    }
+}
+
+@Composable
+fun SelectNextBowlerUI(
+    allOvers: List<Over>,
+    bowlers: List<Bowler>,
+    onBowlerSelected: (bowlerId: Long) -> Unit,
+    onAddNewBowler: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .padding(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Select the next bowler",
+                fontWeight = FontWeight.Medium,
+            )
+            TextButton(onClick = onAddNewBowler) {
+                Text("Add new bowler")
+            }
+        }
         Column(
             modifier = Modifier
-                .padding(12.dp)
+                .border(
+                    width = 1.dp,
+                    color = DividerDefaults.color,
+                    shape = RoundedCornerShape(12.dp)
+                ),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "Select the next bowler",
-                    fontWeight = FontWeight.Medium,
-                )
-                TextButton(onClick = onAddNewBowler) {
-                    Text("Add new bowler")
-                }
-            }
-            Column(
-                modifier = Modifier
-                    .border(
-                        width = 1.dp,
-                        color = DividerDefaults.color,
-                        shape = RoundedCornerShape(12.dp)
-                    ),
-            ) {
-                bowlers.forEachIndexed { index, it ->
-                    PlayerNameText(name = it.name, onSelected = { onBowlerSelected(it.id) })
-                    if (index != bowlers.lastIndex) {
-                        HorizontalDivider()
-                    }
+            bowlers.forEachIndexed { index, it ->
+                Bowler(allOvers, it, onSelected = { onBowlerSelected(it.id) })
+                if (index != bowlers.lastIndex) {
+                    HorizontalDivider()
                 }
             }
         }
+    }
+}
+
+@Composable
+fun Bowler(allOvers: List<Over>, bowler: Bowler, onSelected: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onSelected() }
+            .padding(16.dp)
+    ) {
+        Text(bowler.name, modifier = Modifier.weight(1f))
+        Text(
+            "${allOvers.getBowlerStats(bowler).economy}",
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
+        Text(
+            "${allOvers.getBowlerStats(bowler).wickets}",
+            modifier = Modifier.padding(horizontal = 8.dp)
+        )
     }
 }
 
@@ -1291,6 +1327,39 @@ fun ScoreRecorderBoardPreview() {
     MaterialTheme(colorScheme = lightColorScheme()) {
         Surface(modifier = Modifier.background(color = Color.White)) {
             ScoreRecorderBoard(recordBall = {_, _ -> }, onUndoLastBall = {})
+        }
+    }
+}
+
+@Preview
+@Composable
+fun OverCompletedAlertPreview() {
+    MaterialTheme {
+        OverCompleted(
+            onStartNextOver = {},
+            onUndoLastBall = {},
+            runs = 13,
+            wickets = 1,
+        )
+    }
+}
+
+@Preview
+@Composable
+fun SelectNextBowlerBotttomSheetPreview() {
+    MaterialTheme(colorScheme = lightColorScheme()) {
+        Surface {
+            SelectNextBowlerUI(
+                allOvers = listOf(
+                    Over(balls = listOf())
+                ),
+                bowlers = listOf(
+                    Bowler(1L, "Venkat"),
+                    Bowler(2L, "Ramanan")
+                ),
+                onBowlerSelected = {},
+                onAddNewBowler = {},
+            )
         }
     }
 }
