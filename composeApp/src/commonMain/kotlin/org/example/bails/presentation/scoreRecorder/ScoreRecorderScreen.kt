@@ -103,6 +103,7 @@ fun ScoreRecorderScreen(
     var showUndoConfirmAlert by rememberSaveable { mutableStateOf(false) }
     var showConfirmBackPressAlert by rememberSaveable { mutableStateOf(false) }
     var showNextBowlerSelectionBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var dismissedMatchEnd by rememberSaveable { mutableStateOf(false) }
     var nextBowlerSelectionBottomSheetState = rememberModalBottomSheetState()
     var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
     var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
@@ -160,13 +161,14 @@ fun ScoreRecorderScreen(
         )
     }
 
-    LaunchedEffect(state) {
-        if (state.asInningsRunning().isInningsCompleted) {
-            navigateToScoreBoard()
-        }
+    if (state is ScoreRecorderScreenState.InningsRunning && state.isInningsCompleted && !state.doesWonMatch && !dismissedMatchEnd) {
+        InningsCompletedAlert(
+            navigateToScoreBoard = { dismissedMatchEnd = true },
+            onUndoLastBall = { undoLastBall() }
+        )
     }
 
-    if (state is ScoreRecorderScreenState.InningsRunning && state.isOverCompleted) {
+    if (state is ScoreRecorderScreenState.InningsRunning && state.isOverCompleted && !state.isInningsCompleted && !state.doesWonMatch) {
         OverCompleted(
             onUndoLastBall = {
                 undoLastBall()
@@ -180,12 +182,17 @@ fun ScoreRecorderScreen(
         )
     }
 
-    if (state is ScoreRecorderScreenState.InningsRunning && state.doesWonMatch) {
+    if (state is ScoreRecorderScreenState.InningsRunning && state.doesWonMatch && !dismissedMatchEnd) {
         MatchWonAlert(
-            navigateToScoreBoard = {
-                navigateToScoreBoard()
-            }
+            navigateToScoreBoard = { dismissedMatchEnd = true },
+            onUndoLastBall = { undoLastBall() }
         )
+    }
+
+    LaunchedEffect(dismissedMatchEnd) {
+        if (dismissedMatchEnd) {
+            navigateToScoreBoard()
+        }
     }
 
     if (showUndoConfirmAlert) {
@@ -365,7 +372,7 @@ fun EnterPlayerNameBottomSheet(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MatchWonAlert(navigateToScoreBoard: () -> Unit) {
+fun MatchWonAlert(navigateToScoreBoard: () -> Unit, onUndoLastBall: () -> Unit) {
     BasicAlertDialog(onDismissRequest = {}) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -390,6 +397,44 @@ fun MatchWonAlert(navigateToScoreBoard: () -> Unit) {
             )
             Button(onClick = navigateToScoreBoard) {
                 Text("Go to ScoreBoard")
+            }
+            TextButton(onClick = onUndoLastBall) {
+                Text("Undo Last Ball")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun InningsCompletedAlert(navigateToScoreBoard: () -> Unit, onUndoLastBall: () -> Unit) {
+    BasicAlertDialog(onDismissRequest = {}) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(vertical = 16.dp)
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.ic_ball),
+                contentDescription = "Innings completed icon",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(100.dp)
+                    .padding(top = 16.dp)
+            )
+            Text(
+                text = "Innings Completed",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+            Button(onClick = navigateToScoreBoard) {
+                Text("Go to ScoreBoard")
+            }
+            TextButton(onClick = onUndoLastBall) {
+                Text("Undo Last Ball")
             }
         }
     }
