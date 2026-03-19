@@ -14,6 +14,7 @@ import org.example.bails.presentation.scoreBoard.ScoreBoardScreen
 import org.example.bails.presentation.scoreBoard.ScoreBoardScreenViewModel
 import org.example.bails.presentation.scoreRecorder.ScoreRecorderScreen
 import org.example.bails.presentation.scoreRecorder.ScoreRecorderViewModel
+import org.example.bails.ui.theme.BailsTheme
 
 
 sealed interface BailsScreens {
@@ -37,56 +38,60 @@ sealed interface BailsScreens {
 
 @Composable
 fun App() {
-    val navController = rememberNavController()
+    BailsTheme {
+        val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = BailsScreens.MatchConfig::class) {
-        composable<BailsScreens.MatchConfig> { backStackEntry ->
-            val matchConfig = backStackEntry.toRoute<BailsScreens.MatchConfig>()
+        NavHost(navController = navController, startDestination = BailsScreens.MatchConfig::class) {
+            composable<BailsScreens.MatchConfig> { backStackEntry ->
+                val matchConfig = backStackEntry.toRoute<BailsScreens.MatchConfig>()
 
-            MatchConfigScreen(
-                onStartMatch = { numberOfOvers, strikerName, nonStrikerName, bowlerName ->
-                    navController.navigate(ScoreRecorder(
-                        numberOfOvers = numberOfOvers,
-                        strikerName = strikerName,
-                        nonStrikerName = nonStrikerName,
-                        bowlerName = bowlerName,
-                        matchId = matchConfig.matchId
-                    ))
-                }
-            )
-        }
+                MatchConfigScreen(
+                    onStartMatch = { numberOfOvers, strikerName, nonStrikerName, bowlerName ->
+                        navController.navigate(
+                            ScoreRecorder(
+                                numberOfOvers = numberOfOvers,
+                                strikerName = strikerName,
+                                nonStrikerName = nonStrikerName,
+                                bowlerName = bowlerName,
+                                matchId = matchConfig.matchId
+                            )
+                        )
+                    }
+                )
+            }
 
-        composable<ScoreRecorder> { backStackEntry ->
-            val viewmodel: ScoreRecorderViewModel = viewModel()
+            composable<ScoreRecorder> { backStackEntry ->
+                val viewmodel: ScoreRecorderViewModel = viewModel()
 
-            ScoreRecorderScreen(
-                state = viewmodel.state,
-                undoLastBall = viewmodel::undoLastBall,
-                recordBall = viewmodel::recordBall,
-                onStartNextInnings = viewmodel::startNextInnings,
-                onStartNextOver = viewmodel::startNextOver,
-                goBack = navController::navigateUp,
-                onToggleStrike = viewmodel::toggleStrike,
-                onRetiredHurt = viewmodel::onRetiredHurt,
-                onChangeBowler = viewmodel::onChangeBowler,
-                navigateToScoreBoard = {
-                    navController.navigate(ScoreBoard(viewmodel.matchId))
-                }
-            )
-        }
+                ScoreRecorderScreen(
+                    state = viewmodel.state,
+                    undoLastBall = viewmodel::undoLastBall,
+                    recordBall = viewmodel::recordBall,
+                    onStartNextInnings = viewmodel::startNextInnings,
+                    onStartNextOver = viewmodel::startNextOver,
+                    goBack = navController::navigateUp,
+                    onToggleStrike = viewmodel::toggleStrike,
+                    onRetiredHurt = viewmodel::onRetiredHurt,
+                    onChangeBowler = viewmodel::onChangeBowler,
+                    navigateToScoreBoard = {
+                        navController.navigate(ScoreBoard(viewmodel.matchId))
+                    }
+                )
+            }
 
-        composable<ScoreBoard> {
-            val viewmodel: ScoreBoardScreenViewModel = viewModel()
+            composable<ScoreBoard> {
+                val viewmodel: ScoreBoardScreenViewModel = viewModel()
 
-            ScoreBoardScreen(
-                state = viewmodel.state,
-                onStartNextInnings = {
-                    val matchId = viewmodel.matchId
-                    navController.navigate(
-                        BailsScreens.MatchConfig(matchId = matchId)
-                    )
-                }
-            )
+                ScoreBoardScreen(
+                    state = viewmodel.state,
+                    onStartNextInnings = {
+                        val matchId = viewmodel.matchId
+                        navController.navigate(
+                            BailsScreens.MatchConfig(matchId = matchId)
+                        )
+                    }
+                )
+            }
         }
     }
 }

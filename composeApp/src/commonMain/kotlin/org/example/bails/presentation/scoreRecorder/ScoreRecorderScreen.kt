@@ -9,11 +9,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -46,7 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,11 +59,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -76,6 +76,8 @@ import org.example.bails.util.getBowlerStats
 import org.example.bails.util.getNumberOfWickets
 import org.example.bails.util.getRuns
 import org.example.bails.util.roundToDecimals
+import org.example.bails.ui.theme.BailsColors
+import org.example.bails.ui.theme.BailsTheme
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -100,13 +102,13 @@ fun ScoreRecorderScreen(
 
     var showUndoConfirmAlert by rememberSaveable { mutableStateOf(false) }
     var showConfirmBackPressAlert by rememberSaveable { mutableStateOf(false) }
-    var showNextBowlerSelecttionBottomSheet by rememberSaveable { mutableStateOf(false) }
+    var showNextBowlerSelectionBottomSheet by rememberSaveable { mutableStateOf(false) }
     var nextBowlerSelectionBottomSheetState = rememberModalBottomSheetState()
     var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
     var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
     var isChangingBowler by rememberSaveable { mutableStateOf(false) }
 
-    if (showNextBowlerSelecttionBottomSheet) {
+    if (showNextBowlerSelectionBottomSheet) {
         SelectNextBowlerBottomSheet(
             allOver = state.asInningsRunning().allOvers,
             sheetState = nextBowlerSelectionBottomSheetState,
@@ -119,18 +121,18 @@ fun ScoreRecorderScreen(
                     onStartNextOver(it, null)
                 }
 
-                showNextBowlerSelecttionBottomSheet = false
+                showNextBowlerSelectionBottomSheet = false
             },
             onAddNewBowler = {
                 coroutineScope.launch {
                     nextBowlerSelectionBottomSheetState.hide()
                 }.invokeOnCompletion {
-                    showNextBowlerSelecttionBottomSheet = false
+                    showNextBowlerSelectionBottomSheet = false
                     showEnterPlayerNameBottomSheet = true
                 }
             },
             onDismiss = {
-                showNextBowlerSelecttionBottomSheet = false
+                showNextBowlerSelectionBottomSheet = false
             }
         )
     }
@@ -171,7 +173,7 @@ fun ScoreRecorderScreen(
                 showUndoConfirmAlert = false
             },
             onStartNextOver = {
-                showNextBowlerSelecttionBottomSheet = true
+                showNextBowlerSelectionBottomSheet = true
             },
             runs = state.asInningsRunning().allOvers.last().getRuns(),
             wickets = state.asInningsRunning().allOvers.last().getNumberOfWickets()
@@ -199,7 +201,10 @@ fun ScoreRecorderScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Bails") },
+                title = { Text("Bails", color = MaterialTheme.colorScheme.primary) },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface
+                ),
                 actions = {
                     if (state is ScoreRecorderScreenState.InningsRunning) {
                         IconButton(onClick = { showUndoConfirmAlert = true }) {
@@ -254,7 +259,7 @@ fun ScoreRecorderScreen(
                     onRetiredHurt = onRetiredHurt,
                     onChangeBowler = {
                         isChangingBowler = true
-                        showNextBowlerSelecttionBottomSheet = true
+                        showNextBowlerSelectionBottomSheet = true
                     },
                     navigateToScoreBoardScreen = navigateToScoreBoard,
                     modifier = Modifier.padding(top = 8.dp),
@@ -277,11 +282,11 @@ fun BowlerStats(stats: BowlerStats, onChangeBowler: () -> Unit) {
     var showBowlerOptions by rememberSaveable { mutableStateOf(false) }
     Row(modifier = Modifier
         .padding(horizontal = 8.dp)
-        .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+        .border(1.dp, MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(4.dp))
         .padding(top = 8.dp)
     ) {
         Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
-            Text("Name", style = MaterialTheme.typography.bodySmall)
+            Text("Name", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text(stats.bowler.name, modifier = Modifier.clickable { showBowlerOptions = !showBowlerOptions }.padding(vertical = 8.dp))
             AnimatedVisibility(showBowlerOptions) {
                 ChangeBowlerButton(onClick = {
@@ -291,23 +296,23 @@ fun BowlerStats(stats: BowlerStats, onChangeBowler: () -> Unit) {
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("O", style = MaterialTheme.typography.bodySmall)
+            Text("O", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${stats.overs}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("M", style = MaterialTheme.typography.bodySmall)
+            Text("M", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${stats.maidenOvers}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("R", style = MaterialTheme.typography.bodySmall)
+            Text("R", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${stats.runs}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("W", style = MaterialTheme.typography.bodySmall)
+            Text("W", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${stats.wickets}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Econ", style = MaterialTheme.typography.bodySmall)
+            Text("Econ", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${stats.economy}", modifier = Modifier.padding(vertical = 8.dp))
         }
     }
@@ -325,8 +330,6 @@ fun EnterPlayerNameBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        dragHandle = {},
-        shape = RectangleShape
     ) {
         var playerName by rememberSaveable { mutableStateOf(playerName) }
 
@@ -374,6 +377,7 @@ fun MatchWonAlert(navigateToScoreBoard: () -> Unit) {
             Icon(
                 painter = painterResource(Res.drawable.ic_ball),
                 contentDescription = "Match won icon",
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(100.dp)
                     .padding(top = 16.dp)
@@ -381,6 +385,7 @@ fun MatchWonAlert(navigateToScoreBoard: () -> Unit) {
             Text(
                 text = "Match won!!!",
                 style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
             Button(onClick = navigateToScoreBoard) {
@@ -404,6 +409,7 @@ fun OverCompleted(onStartNextOver: () -> Unit, onUndoLastBall: () -> Unit, runs:
             Icon(
                 painter = painterResource(Res.drawable.ic_ball),
                 contentDescription = "Over completed icon",
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
                     .size(100.dp)
                     .padding(top = 16.dp)
@@ -411,6 +417,7 @@ fun OverCompleted(onStartNextOver: () -> Unit, onUndoLastBall: () -> Unit, runs:
             Text(
                 text = "Over completed!!!",
                 style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(vertical = 12.dp)
             )
             Text(
@@ -565,11 +572,11 @@ fun Batters(
 
     Row(modifier = modifier
         .padding(horizontal = 8.dp)
-        .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+        .border(1.dp, MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(4.dp))
         .padding(top = 8.dp)
     ) {
         Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
-            Text("Name", style = MaterialTheme.typography.bodySmall)
+            Text("Name", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text(player1.batter.name, modifier = Modifier.padding(vertical = 8.dp).clickable { showStrikerBatterOptions = !showStrikerBatterOptions })
             AnimatedVisibility(showStrikerBatterOptions) {
                 RetiredHurtButton(onClick = {
@@ -592,27 +599,27 @@ fun Batters(
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("R", style = MaterialTheme.typography.bodySmall)
+            Text("R", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${player1.runs}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.runs}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("B", style = MaterialTheme.typography.bodySmall)
+            Text("B", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${player1.ballsFaced}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.ballsFaced}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("4s", style = MaterialTheme.typography.bodySmall)
+            Text("4s", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${player1.boundaries}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.boundaries}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("6s", style = MaterialTheme.typography.bodySmall)
+            Text("6s", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${player1.sixes}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.sixes}", modifier = Modifier.padding(vertical = 8.dp))
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("S/R", style = MaterialTheme.typography.bodySmall)
+            Text("S/R", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             Text("${player1.getStrikeRate()}", modifier = Modifier.padding(vertical = 8.dp))
             Text("${player2.getStrikeRate()}", modifier = Modifier.padding(vertical = 8.dp))
         }
@@ -626,7 +633,7 @@ fun InningsBreak(previousInningsSummary: InningsSummary, onStartNextInnings: () 
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Innings Break", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("Innings Break", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
         Column(
             modifier = Modifier.padding(vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -666,41 +673,41 @@ fun InningsBreak(previousInningsSummary: InningsSummary, onStartNextInnings: () 
 fun BowlersStats(allBowlerStats: List<BowlerStats>) {
     Row(modifier = Modifier
         .padding(horizontal = 8.dp)
-        .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+        .border(1.dp, MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(4.dp))
         .padding(top = 8.dp)
     ) {
         Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
-            Text("Name", style = MaterialTheme.typography.bodySmall)
+            Text("Name", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBowlerStats.forEach {
                 Text(it.bowler.name, modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("O", style = MaterialTheme.typography.bodySmall)
+            Text("O", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBowlerStats.forEach {
                 Text("${it.overs}", modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("M", style = MaterialTheme.typography.bodySmall)
+            Text("M", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBowlerStats.forEach {
                 Text("${it.maidenOvers}", modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("R", style = MaterialTheme.typography.bodySmall)
+            Text("R", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBowlerStats.forEach {
                 Text("${it.runs}", modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("W", style = MaterialTheme.typography.bodySmall)
+            Text("W", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBowlerStats.forEach {
                 Text("${it.wickets}", modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Econ", style = MaterialTheme.typography.bodySmall)
+            Text("Econ", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBowlerStats.forEach {
                 Text("${it.economy}", modifier = Modifier.padding(vertical = 8.dp))
             }
@@ -712,41 +719,41 @@ fun BowlersStats(allBowlerStats: List<BowlerStats>) {
 fun BattersStats(allBattersStats: List<BatterStats>, modifier: Modifier = Modifier) {
     Row(modifier = modifier
         .padding(horizontal = 8.dp)
-        .border(1.dp, Color.Black, shape = RoundedCornerShape(4.dp))
+        .border(1.dp, MaterialTheme.colorScheme.outline, shape = RoundedCornerShape(4.dp))
         .padding(top = 8.dp)
     ) {
         Column(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
-            Text("Name", style = MaterialTheme.typography.bodySmall)
+            Text("Name", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBattersStats.forEach {
                 Text(it.batter.name, modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("R", style = MaterialTheme.typography.bodySmall)
+            Text("R", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBattersStats.forEach {
                 Text("${it.runs}", modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("B", style = MaterialTheme.typography.bodySmall)
+            Text("B", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBattersStats.forEach {
                 Text("${it.ballsFaced}", modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("4s", style = MaterialTheme.typography.bodySmall)
+            Text("4s", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBattersStats.forEach {
                 Text("${it.boundaries}", modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("6s", style = MaterialTheme.typography.bodySmall)
+            Text("6s", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBattersStats.forEach {
                 Text("${it.sixes}", modifier = Modifier.padding(vertical = 8.dp))
             }
         }
         Column(modifier = Modifier.padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("S/R", style = MaterialTheme.typography.bodySmall)
+            Text("S/R", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             allBattersStats.forEach {
                 Text("${it.getStrikeRate()}", modifier = Modifier.padding(vertical = 8.dp))
             }
@@ -759,104 +766,195 @@ fun BallsHistory(overs: List<Over>, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
 
     LaunchedEffect(overs.map { it.balls }.flatten().size) {
-        if (overs.isNotEmpty() && overs.first().balls.isNotEmpty()) {
-            listState.animateScrollToItem(overs.map { it.balls }.flatten().lastIndex)
+        if (overs.isNotEmpty()) {
+            listState.animateScrollToItem(overs.lastIndex)
         }
     }
 
     Column(
-        modifier = modifier
-            .padding(vertical = 8.dp)
-            .animateContentSize()
+        modifier = modifier.animateContentSize()
     ) {
-        Text(
-            text = "History",
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .padding(top = 12.dp)
-                .padding(horizontal = 12.dp)
-        )
-
-        if (overs.size == 0) {
-            Text("Inninga not started", textAlign = TextAlign.Center,modifier = Modifier.fillMaxWidth())
+        if (overs.isEmpty()) {
+            Text(
+                "Innings not started",
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp)
+            )
+        } else {
+            LazyRow(
+                state = listState,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(overs.size) { overIndex ->
+                    OverCard(
+                        overNumber = overIndex + 1,
+                        over = overs[overIndex]
+                    )
+                }
+            }
         }
-        LazyRow(
-            state = listState,
-            horizontalArrangement = Arrangement.spacedBy(12.dp, alignment = Alignment.CenterHorizontally),
+    }
+}
+
+@Composable
+fun OverCard(overNumber: Int, over: Over) {
+    val overRuns = over.balls.sumOf { it.score }
+
+    Column(
+        modifier = Modifier
+            .background(
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                RoundedCornerShape(12.dp)
+            )
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Row(
             verticalAlignment = Alignment.CenterVertically,
-            contentPadding = PaddingValues(start = 12.dp, end = 96.dp),
-            modifier = Modifier
-                .fillMaxWidth()
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(overs.size) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Over ${it + 1}", modifier = Modifier.padding(bottom = 12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        overs[it].balls.forEach { ball ->
-                            if (ball is Ball.CorrectBall) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .border(width = 1.dp, color = MaterialTheme.colorScheme.onSurface)
-                                ) {
-                                    Text(text = ball.score.toString())
-                                }
-                            } else if (ball is Ball.Wicket) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .height(20.dp)
-                                        .background(Color.Red.copy(alpha = 0.4f))
-                                        .padding(horizontal = 4.dp)
-                                ) {
-                                    Text(text = "W - ${ball.score}")
-                                }
-                            } else if (ball is Ball.NoBall) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .height(20.dp)
-                                        .background(Color.Green.copy(alpha = 0.4f))
-                                        .padding(horizontal = 4.dp)
-                                ) {
-                                    Text(text = "NB - ${ball.score}")
-                                }
-                            } else if (ball is Ball.WideBall) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .height(20.dp)
-                                        .background(Color.Green.copy(alpha = 0.4f))
-                                        .padding(horizontal = 4.dp)
-                                ) {
-                                    Text(text = "W - ${ball.score}")
-                                }
-                            } else if (ball is Ball.DotBall) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .border(width = 1.dp, color = Color.Gray)
-                                ) {
-                                    Box(modifier = Modifier.size(8.dp).clip(RoundedCornerShape(50)).background(Color.Green))
-                                }
-                            }
+            Text(
+                "OVR $overNumber",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Medium
+            )
+            Box(
+                modifier = Modifier
+                    .background(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        RoundedCornerShape(4.dp)
+                    )
+                    .padding(horizontal = 6.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    "$overRuns",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            over.balls.forEach { ball ->
+                BallIndicator(ball)
+            }
+        }
+    }
+}
+
+@Composable
+fun BallIndicator(ball: Ball) {
+    val indicatorSize = 30.dp
+    when (ball) {
+        is Ball.DotBall -> {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(indicatorSize)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface)
+                    .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(BailsColors.dotBall)
+                )
+            }
+        }
+        is Ball.CorrectBall -> {
+            val isBoundary = ball.runs == 4
+            val isSix = ball.runs == 6
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(indicatorSize)
+                    .clip(CircleShape)
+                    .background(
+                        when {
+                            isSix -> MaterialTheme.colorScheme.secondary
+                            isBoundary -> MaterialTheme.colorScheme.primary
+                            else -> MaterialTheme.colorScheme.surface
                         }
+                    )
+                    .then(
+                        if (!isBoundary && !isSix)
+                            Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                        else Modifier
+                    )
+            ) {
+                Text(
+                    text = "${ball.runs}",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = when {
+                        isSix -> MaterialTheme.colorScheme.onSecondary
+                        isBoundary -> MaterialTheme.colorScheme.onPrimary
+                        else -> MaterialTheme.colorScheme.onSurface
                     }
-                }
-                if (it != overs.lastIndex) {
-                    Row(modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp)) {
-                        Row(
-                            modifier = Modifier
-                                .padding(top = 24.dp)
-                                .height(20.dp)
-                                .width(4.dp)
-                                .clip(RoundedCornerShape(50))
-                                .background(Color.LightGray)
-                        ) {}
-                    }
-                }
+                )
+            }
+        }
+        is Ball.Wicket -> {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(indicatorSize)
+                    .clip(CircleShape)
+                    .background(BailsColors.wicketBackground)
+                    .border(1.5.dp, BailsColors.wicketText, CircleShape)
+            ) {
+                Text(
+                    text = "W",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = BailsColors.wicketText
+                )
+            }
+        }
+        is Ball.WideBall -> {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(indicatorSize)
+                    .clip(CircleShape)
+                    .background(BailsColors.wideBackground)
+                    .border(1.5.dp, BailsColors.wideText, CircleShape)
+            ) {
+                Text(
+                    text = "WD",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = BailsColors.wideText
+                )
+            }
+        }
+        is Ball.NoBall -> {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(indicatorSize)
+                    .clip(CircleShape)
+                    .background(BailsColors.noBallBackground)
+                    .border(1.5.dp, BailsColors.noBallText, CircleShape)
+            ) {
+                Text(
+                    text = "NB",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = BailsColors.noBallText
+                )
             }
         }
     }
@@ -871,8 +969,10 @@ fun ColumnScope.ScoreDisplay(score: Int, modifier: Modifier = Modifier, wickets:
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "$score - $wickets",
+            text = "$score / $wickets",
             fontSize = 50.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
             textAlign = TextAlign.Center
         )
     }
@@ -897,7 +997,7 @@ fun OversAndWickets(balls: Int, wickets: Int, modifier: Modifier = Modifier) {
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScoreRecorder(
     state: ScoreRecorderScreenState.InningsRunning,
@@ -1011,55 +1111,6 @@ fun ScoreRecorder(
             },
             onUndoLastBall = onUndoLastBall
         )
-        /*Row(modifier = modifier.fillMaxWidth().height(100.dp).padding(horizontal = 12.dp)) {
-            AnimatedVisibility(visible = currentBall == null) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, alignment = Alignment.CenterHorizontally),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth().height(100.dp)
-                ) {
-                    BallType.entries.forEach {
-                        BallLabel(
-                            text = it.displayStr,
-                            onClick = {
-                                if (it == BallType.DOT_BALL) {
-                                    recordBall(Ball.DotBall(currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
-                                } else {
-                                    currentBall = it
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-            AnimatedVisibility(visible = currentBall != null) {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp, alignment = Alignment.CenterHorizontally),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.height(100.dp)
-                ) {
-                    (0..6).forEach {
-                        ScoreLabel(
-                            score = it,
-                            onClick = {
-                                if (currentBall == BallType.WICKET) {
-                                    showSelectOutPlayerSheet = true
-                                    currentScore = it
-                                } else {
-                                    when(currentBall) {
-                                        BallType.WIDE -> recordBall(Ball.WideBall(it, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
-                                        BallType.CORRECT_BALL -> recordBall(Ball.CorrectBall(it, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
-                                        BallType.NO_BALL ->  recordBall(Ball.NoBall(it, currentBowler, state.currentPlainStriker, state.currentPlainNonStriker))
-                                        else -> Unit
-                                    }
-                                    currentBall = null
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }*/
     }
 
 }
@@ -1217,7 +1268,7 @@ fun ScoreRecorderBoard(
                     RunBox("6\nSIX", onClick = { recordScore(6) })
                 }
             }
-            Row(modifier = Modifier.fillMaxWidth().background(Color.Gray.copy(alpha = 0.1f))) {
+            Row(modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant)) {
                 BallTypeBox(
                     text = "WD",
                     onClick = { ball = BallType.WIDE},
@@ -1228,32 +1279,23 @@ fun ScoreRecorderBoard(
                     onClick = { ball = BallType.NO_BALL },
                     isSelected = ball == BallType.NO_BALL
                 )
-                BallTypeBox(
-                    text = "BYE",
-                    onClick = { },
-                    isSelected = false
-                )
             }
         }
         Column(
             modifier = Modifier
                 .width(IntrinsicSize.Max)
-                .background(Color.Gray.copy(alpha = 0.1f))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            BallTypeBox("UNDO", textColor = Color.Blue, onClick = { onUndoLastBall() }, isSelected = false)
-            HorizontalDivider()
-            BallTypeBox("5, 7", onClick = {}, isSelected = false)
+            BallTypeBox("UNDO", textColor = MaterialTheme.colorScheme.primary, onClick = { onUndoLastBall() }, isSelected = false)
             HorizontalDivider()
             BallTypeBox(
                 "OUT",
-                textColor = Color.Red,
+                textColor = MaterialTheme.colorScheme.error,
                 isSelected = ball == BallType.WICKET,
                 onClick = {
                     ball = BallType.WICKET
                 }
             )
-            HorizontalDivider()
-            BallTypeBox("LB", onClick = {}, isSelected = false)
         }
     }
 }
@@ -1265,9 +1307,9 @@ fun RowScope.BallTypeBox(text: String, isSelected: Boolean, onClick: () -> Unit)
             .clickable{ onClick() }
             .then(
                 if (isSelected)
-                    Modifier.border(color = Color.Green, width = 1.dp)
+                    Modifier.border(color = MaterialTheme.colorScheme.primary, width = 1.dp)
                 else
-                    Modifier.border(color = Color.Gray.copy(alpha = 0.1f), width = 0.5.dp)
+                    Modifier.border(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), width = 0.5.dp)
             )
             .weight(1f)
             .padding(16.dp),
@@ -1289,7 +1331,7 @@ fun ColumnScope.BallTypeBox(
             .fillMaxWidth()
             .then(
                 if (isSelected)
-                    Modifier.border(color = Color.Green, width = 1.dp)
+                    Modifier.border(color = MaterialTheme.colorScheme.primary, width = 1.dp)
                 else
                     Modifier
             )
@@ -1309,9 +1351,9 @@ fun RowScope.RunBox(runs: String, onClick: () -> Unit) {
             .fillMaxHeight()
             .clickable { onClick() }
             .weight(1f)
-            .border(color = Color.Gray.copy(alpha = 0.2f), width = 1.dp)
+            .border(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), width = 1.dp)
     ) {
-        Text(runs, textAlign = TextAlign.Center)
+        Text(runs, textAlign = TextAlign.Center, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
     }
 }
 
@@ -1324,8 +1366,8 @@ fun BatterStats.getStrikeRate(): Float {
 @Preview
 @Composable
 fun ScoreRecorderBoardPreview() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
-        Surface(modifier = Modifier.background(color = Color.White)) {
+    BailsTheme {
+        Surface {
             ScoreRecorderBoard(recordBall = {_, _ -> }, onUndoLastBall = {})
         }
     }
@@ -1334,7 +1376,7 @@ fun ScoreRecorderBoardPreview() {
 @Preview
 @Composable
 fun OverCompletedAlertPreview() {
-    MaterialTheme {
+    BailsTheme {
         OverCompleted(
             onStartNextOver = {},
             onUndoLastBall = {},
@@ -1347,7 +1389,7 @@ fun OverCompletedAlertPreview() {
 @Preview
 @Composable
 fun SelectNextBowlerBotttomSheetPreview() {
-    MaterialTheme(colorScheme = lightColorScheme()) {
+    BailsTheme {
         Surface {
             SelectNextBowlerUI(
                 allOvers = listOf(
