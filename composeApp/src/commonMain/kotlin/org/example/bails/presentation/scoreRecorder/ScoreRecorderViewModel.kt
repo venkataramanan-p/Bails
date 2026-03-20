@@ -22,8 +22,12 @@ class ScoreRecorderViewModel(
     val matchId = savedStateHandle["matchId"] ?: Clock.System.now().toEpochMilliseconds()
     val isFirstInning = savedStateHandle.get<Long>("matchId") == null
 
-    init  {
-        println("matchId: $matchId ${savedStateHandle.get<Long>("matchId")}")
+    init {
+        if (isFirstInning) {
+            BailsDb.setTotalOvers(matchId, numberOfOvers)
+        }
+        val matchSummary = BailsDb.getMatchSummary(matchId)
+        println(">>> ScoreRecorderVM init: matchId=$matchId, isFirstInning=$isFirstInning, matchSummary=${matchSummary != null}, firstInningsOvers=${matchSummary?.first?.overs?.size}, targetScore=${matchSummary?.first?.overs?.let { getTotalRuns(it) + 1 } ?: 0}")
     }
 
     var previousBallState: ScoreRecorderScreenState.InningsRunning? = null
@@ -110,7 +114,7 @@ class ScoreRecorderViewModel(
 
         BailsDb.updateMatchSummary(matchId, isFirstInning, Inning(state.asInningsRunning().allOvers))
 
-        if (!state.asInningsRunning().isFirstInning && state.asInningsRunning().score >= state.asInningsRunning().targetScore) {
+        if (!state.asInningsRunning().isFirstInning && state.asInningsRunning().targetScore > 0 && state.asInningsRunning().score >= state.asInningsRunning().targetScore) {
             state = state.asInningsRunning().copy(doesWonMatch = true)
         } else if (isStrikeChanged) {
             state = state.asInningsRunning().copy(

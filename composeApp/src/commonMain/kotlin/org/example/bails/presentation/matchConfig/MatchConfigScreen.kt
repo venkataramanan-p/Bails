@@ -33,19 +33,24 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import org.example.bails.data.BailsDb
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MatchConfigScreen(
+    matchId: Long? = null,
     onStartMatch: (Int, strikerName: String, nonStrikerName: String, bowlerName: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isSecondInnings = matchId != null
+    val savedOvers = matchId?.let { BailsDb.getTotalOvers(it) }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        "New Match",
+                        if (isSecondInnings) "2nd Innings" else "New Match",
                         color = MaterialTheme.colorScheme.primary
                     )
                 },
@@ -56,7 +61,7 @@ fun MatchConfigScreen(
         }
     ) { padding ->
 
-        var numberOfOvers: String? by remember { mutableStateOf(null) }
+        var numberOfOvers: String? by remember { mutableStateOf(savedOvers?.toString()) }
         var strikerName: String by remember { mutableStateOf("") }
         var nonStrikerName: String by remember { mutableStateOf("") }
         var bowlerName: String by remember { mutableStateOf("") }
@@ -78,12 +83,14 @@ fun MatchConfigScreen(
                 title = "Overs",
                 value = numberOfOvers ?: "",
                 onValueChange = { newText ->
+                    if (isSecondInnings) return@NumberFormField
                     val number = newText.toIntOrNull()
                     if (number == null && newText.isNotEmpty()) return@NumberFormField
                     if (number == null || (number in 0..20)) numberOfOvers = newText
                 },
                 focusRequester = focusRequester,
                 placeholder = "1 - 20",
+                enabled = !isSecondInnings,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
             TextFormField(
@@ -179,6 +186,7 @@ fun NumberFormField(
     focusRequester: FocusRequester,
     modifier: Modifier = Modifier,
     placeholder: String = "",
+    enabled: Boolean = true,
     imeAction: ImeAction = ImeAction.Next,
 ) {
     Column(modifier = modifier) {
@@ -191,6 +199,7 @@ fun NumberFormField(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
+            enabled = enabled,
             placeholder = if (placeholder.isNotEmpty()) {{
                 Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
             }} else null,
@@ -201,6 +210,8 @@ fun NumberFormField(
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                disabledBorderColor = MaterialTheme.colorScheme.outline,
+                disabledTextColor = MaterialTheme.colorScheme.onSurface,
                 cursorColor = MaterialTheme.colorScheme.primary,
             ),
             modifier = Modifier

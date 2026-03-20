@@ -46,6 +46,7 @@ fun App() {
                 val matchConfig = backStackEntry.toRoute<BailsScreens.MatchConfig>()
 
                 MatchConfigScreen(
+                    matchId = matchConfig.matchId,
                     onStartMatch = { numberOfOvers, strikerName, nonStrikerName, bowlerName ->
                         navController.navigate(
                             ScoreRecorder(

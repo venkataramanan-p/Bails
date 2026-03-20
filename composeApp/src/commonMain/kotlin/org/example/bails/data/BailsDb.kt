@@ -9,6 +9,15 @@ data class Inning(
 
 object BailsDb {
     private val matchSummaries: MutableMap<Long, Pair<Inning, Inning>> = mutableMapOf()
+    private val matchTotalOvers: MutableMap<Long, Int> = mutableMapOf()
+
+    fun setTotalOvers(matchId: Long, overs: Int) {
+        matchTotalOvers[matchId] = overs
+    }
+
+    fun getTotalOvers(matchId: Long): Int? {
+        return matchTotalOvers[matchId]
+    }
 
     fun updateMatchSummary(matchId: Long, isFirstInning: Boolean, inning: Inning) {
         if (isFirstInning) {
