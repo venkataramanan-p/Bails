@@ -1,5 +1,8 @@
 package org.example.bails.presentation.scoreRecorder
 
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
 sealed interface ScoreRecorderScreenState {
 
     data class InningsRunning(
@@ -52,10 +55,12 @@ data class BowlerStats(
     val economy: Float
 )
 
+@Serializable
 data class Over(
     val balls: List<Ball>,
 )
 
+@Serializable
 data class Bowler(
     val id: Long,
     val name: String
@@ -78,7 +83,10 @@ enum class BallType(val displayStr: String) {
     WICKET("Wicket")
 }
 
+@Serializable
 sealed class Ball(var score: Int, val bowler: Bowler, val iStriker: PlainBatter, val iNonStriker: PlainBatter) {
+    @Serializable
+    @SerialName("correct")
     data class CorrectBall(
         val runs: Int,
         val assignedBowler: Bowler,
@@ -86,6 +94,8 @@ sealed class Ball(var score: Int, val bowler: Bowler, val iStriker: PlainBatter,
         val nonStriker: PlainBatter,
     ) : Ball(runs, assignedBowler, striker, nonStriker)
 
+    @Serializable
+    @SerialName("wide")
     data class WideBall(
         val runs: Int = 1,
         val assignedBowler: Bowler,
@@ -93,6 +103,8 @@ sealed class Ball(var score: Int, val bowler: Bowler, val iStriker: PlainBatter,
         val nonStriker: PlainBatter,
     ) : Ball(runs, assignedBowler, striker, nonStriker)
 
+    @Serializable
+    @SerialName("no_ball")
     data class NoBall(
         val runs: Int = 1,
         val assignedBowler: Bowler,
@@ -100,12 +112,16 @@ sealed class Ball(var score: Int, val bowler: Bowler, val iStriker: PlainBatter,
         val nonStriker: PlainBatter,
     ) : Ball(runs, assignedBowler, striker, nonStriker)
 
+    @Serializable
+    @SerialName("dot")
     data class DotBall(
         val assignedBowler: Bowler,
         val striker: PlainBatter,
         val nonStriker: PlainBatter
     ): Ball(0, assignedBowler, striker, nonStriker)
 
+    @Serializable
+    @SerialName("wicket")
     data class Wicket(
         val runs: Int,
         val outPlayerId: Long,
@@ -116,6 +132,7 @@ sealed class Ball(var score: Int, val bowler: Bowler, val iStriker: PlainBatter,
     ): Ball(runs, assignedBower, striker, nonStriker)
 }
 
+@Serializable
 data class PlainBatter(
     val id: Long,
     val name: String

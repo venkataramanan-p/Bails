@@ -18,7 +18,7 @@ kotlin {
             jvmTarget.set(JvmTarget.JVM_11)
         }
     }
-    
+
     listOf(
         iosX64(),
         iosArm64(),
@@ -30,16 +30,11 @@ kotlin {
         }
     }
 
-    sourceSets.commonMain {
-        kotlin.srcDirs("build/generated/ksp/metadata")
-    }
-    
     sourceSets {
-        
+
         androidMain.dependencies {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
-            implementation(libs.room.runtime)
         }
         commonMain.dependencies {
             implementation(compose.runtime)
@@ -57,6 +52,7 @@ kotlin {
 
             // room
             implementation(libs.room.runtime)
+            implementation(libs.sqlite.bundled)
         }
     }
 }
@@ -95,12 +91,8 @@ android {
 dependencies {
     debugImplementation(compose.uiTooling)
 
-    add("kspCommonMainMetadata", "androidx.room:room-compiler:2.7.0-alpha04")
+    add("kspAndroid", libs.room.compiler)
+    add("kspIosX64", libs.room.compiler)
+    add("kspIosArm64", libs.room.compiler)
+    add("kspIosSimulatorArm64", libs.room.compiler)
 }
-
-tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
-    if (name == "kspCommonMainKotlinMetadata") {
-        dependsOn("kspCommonMainKotlinMetadata")
-    }
-}
-

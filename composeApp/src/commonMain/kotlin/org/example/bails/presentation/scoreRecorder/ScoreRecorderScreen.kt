@@ -54,6 +54,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -89,15 +90,13 @@ fun ScoreRecorderScreen(
     recordBall: (Ball) -> Unit,
     onStartNextInnings: () -> Unit,
     onStartNextOver: (bowlerId: Long?, bowlerName: String?) -> Unit,
-    goBack: () -> Unit,
+    goHome: () -> Unit,
     onToggleStrike: () -> Unit,
     onChangeBowler: (bowlerId: Long?, bowlerName: String?) -> Unit,
     onRetiredHurt: (Long, newBatterName: String) -> Unit,
     navigateToScoreBoard: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // todo: interrupt back press and show confirmation dialog
-
     val coroutineScope = rememberCoroutineScope()
 
     var showUndoConfirmAlert by rememberSaveable { mutableStateOf(false) }
@@ -108,6 +107,8 @@ fun ScoreRecorderScreen(
     var showEnterPlayerNameBottomSheet by rememberSaveable { mutableStateOf(false) }
     var enterPlayerNameBottomSheetState = rememberModalBottomSheetState()
     var isChangingBowler by rememberSaveable { mutableStateOf(false) }
+
+    BackHandler { showConfirmBackPressAlert = true }
 
     if (showNextBowlerSelectionBottomSheet) {
         SelectNextBowlerBottomSheet(
@@ -229,8 +230,11 @@ fun ScoreRecorderScreen(
 
         if (showConfirmBackPressAlert) {
             ConfirmBackPressAlert(
-                onCancel = {},
-                onConfirm = { goBack() }
+                onCancel = { showConfirmBackPressAlert = false },
+                onConfirm = {
+                    showConfirmBackPressAlert = false
+                    goHome()
+                }
             )
         }
 
@@ -468,6 +472,7 @@ fun OverCompleted(onStartNextOver: () -> Unit, onUndoLastBall: () -> Unit, runs:
             Text(
                 text = "This over: $runs Runs - $wickets Wickets",
                 style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
             Button(onClick = onStartNextOver) {
@@ -914,7 +919,7 @@ fun BallIndicator(ball: Ball) {
                     modifier = Modifier
                         .size(8.dp)
                         .clip(CircleShape)
-                        .background(BailsColors.dotBall)
+                        .background(BailsColors.current.dotBall)
                 )
             }
         }
@@ -957,14 +962,14 @@ fun BallIndicator(ball: Ball) {
                 modifier = Modifier
                     .size(indicatorSize)
                     .clip(CircleShape)
-                    .background(BailsColors.wicketBackground)
-                    .border(1.5.dp, BailsColors.wicketText, CircleShape)
+                    .background(BailsColors.current.wicketBackground)
+                    .border(1.5.dp, BailsColors.current.wicketText, CircleShape)
             ) {
                 Text(
                     text = "W",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = BailsColors.wicketText
+                    color = BailsColors.current.wicketText
                 )
             }
         }
@@ -974,14 +979,14 @@ fun BallIndicator(ball: Ball) {
                 modifier = Modifier
                     .size(indicatorSize)
                     .clip(CircleShape)
-                    .background(BailsColors.wideBackground)
-                    .border(1.5.dp, BailsColors.wideText, CircleShape)
+                    .background(BailsColors.current.wideBackground)
+                    .border(1.5.dp, BailsColors.current.wideText, CircleShape)
             ) {
                 Text(
                     text = "WD",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.ExtraBold,
-                    color = BailsColors.wideText
+                    color = BailsColors.current.wideText
                 )
             }
         }
@@ -991,14 +996,14 @@ fun BallIndicator(ball: Ball) {
                 modifier = Modifier
                     .size(indicatorSize)
                     .clip(CircleShape)
-                    .background(BailsColors.noBallBackground)
-                    .border(1.5.dp, BailsColors.noBallText, CircleShape)
+                    .background(BailsColors.current.noBallBackground)
+                    .border(1.5.dp, BailsColors.current.noBallText, CircleShape)
             ) {
                 Text(
                     text = "NB",
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.ExtraBold,
-                    color = BailsColors.noBallText
+                    color = BailsColors.current.noBallText
                 )
             }
         }

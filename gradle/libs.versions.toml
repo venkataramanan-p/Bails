@@ -17,8 +17,8 @@ kotlin = "2.1.0"
 viemwodel-compose = "2.8.2"
 navigationCompose = "2.8.0-alpha10"
 kotlinxSerialization = "1.8.0"
-roomVersion = "2.7.0-alpha04"
-ksp = "2.0.0-1.0.21"
+roomVersion = "2.7.1"
+ksp = "2.1.0-1.0.29"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -40,7 +40,7 @@ kotlin-serialization = { group = "org.jetbrains.kotlinx", name = "kotlinx-serial
 room-gradle-plugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "roomVersion" }
 room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "roomVersion" }
 room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "roomVersion" }
-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version = "2.5.0-SNAPSHOT" }
+sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version = "2.5.0" }
 
 #material3 = { group="androidx.compose.material3", name="" }
 

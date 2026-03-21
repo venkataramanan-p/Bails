@@ -18,6 +18,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.BasicAlertDialog
 import androidx.compose.material3.Button
@@ -61,7 +62,11 @@ import org.jetbrains.compose.resources.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ScoreBoardScreen(state: ScoreBoardScreenState, onStartNextInnings: () -> Unit) {
+fun ScoreBoardScreen(
+    state: ScoreBoardScreenState,
+    onStartNextInnings: () -> Unit,
+    onGoHome: () -> Unit = {},
+) {
     var showShareDialog by remember { mutableStateOf(false) }
     var selectedTeamIndex by remember { mutableIntStateOf(0) }
 
@@ -72,6 +77,15 @@ fun ScoreBoardScreen(state: ScoreBoardScreenState, onStartNextInnings: () -> Uni
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = MaterialTheme.colorScheme.surface
                 ),
+                navigationIcon = {
+                    IconButton(onClick = onGoHome) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to Home",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                },
                 actions = {
                     if (state is ScoreBoardScreenState.Success) {
                         IconButton(onClick = { showShareDialog = true }) {
@@ -90,9 +104,11 @@ fun ScoreBoardScreen(state: ScoreBoardScreenState, onStartNextInnings: () -> Uni
             when(state) {
                 is ScoreBoardScreenState.Success -> {
                     ScoreBoardSuccessScreen(
-                        state.firstInnings,
-                        state.secondInnings,
-                        onStartNextInnings,
+                        firstInning = state.firstInnings,
+                        secondInning = state.secondInnings,
+                        team1Name = state.team1Name,
+                        team2Name = state.team2Name,
+                        onStartNextInnings = onStartNextInnings,
                         onPageChanged = { selectedTeamIndex = it }
                     )
                 }
@@ -107,9 +123,9 @@ fun ScoreBoardScreen(state: ScoreBoardScreenState, onStartNextInnings: () -> Uni
 
     if (showShareDialog && state is ScoreBoardScreenState.Success) {
         SharePreviewDialog(
-            teamLabel = if (selectedTeamIndex == 0) "Team 1" else "Team 2",
+            teamLabel = if (selectedTeamIndex == 0) state.team1Name else state.team2Name,
             innings = if (selectedTeamIndex == 0) state.firstInnings else state.secondInnings,
-            oppositionLabel = if (selectedTeamIndex == 0) "Team 2" else "Team 1",
+            oppositionLabel = if (selectedTeamIndex == 0) state.team2Name else state.team1Name,
             oppositionInnings = if (selectedTeamIndex == 0) state.secondInnings else state.firstInnings,
             onDismiss = { showShareDialog = false }
         )
@@ -120,6 +136,8 @@ fun ScoreBoardScreen(state: ScoreBoardScreenState, onStartNextInnings: () -> Uni
 fun ScoreBoardSuccessScreen(
     firstInning: InningsSummary,
     secondInning: InningsSummary,
+    team1Name: String = "Team 1",
+    team2Name: String = "Team 2",
     onStartNextInnings: () -> Unit,
     onPageChanged: (Int) -> Unit = {},
 ) {
@@ -140,7 +158,7 @@ fun ScoreBoardSuccessScreen(
         ) {
             Column {
                 Text(
-                    "Team 1",
+                    team1Name,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -153,7 +171,7 @@ fun ScoreBoardSuccessScreen(
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    "Team 2",
+                    team2Name,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -168,12 +186,12 @@ fun ScoreBoardSuccessScreen(
         TabRow(selectedTabIndex = pagerState.currentPage, modifier = Modifier.fillMaxWidth()) {
             Tab(
                 selected = pagerState.currentPage == 0,
-                text = { Text("Team 1") },
+                text = { Text(team1Name) },
                 onClick = { coroutineScope.launch { pagerState.animateScrollToPage(page = 0) } },
             )
             Tab(
                 selected = pagerState.currentPage == 1,
-                text = { Text("Team 2") },
+                text = { Text(team2Name) },
                 onClick = { coroutineScope.launch { pagerState.animateScrollToPage(page = 1) } },
             )
         }

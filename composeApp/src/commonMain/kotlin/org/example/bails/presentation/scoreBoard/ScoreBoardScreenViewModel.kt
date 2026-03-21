@@ -5,8 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
-import org.example.bails.data.BailsDb
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import org.example.bails.data.Inning
+import org.example.bails.data.MatchRepository
 import org.example.bails.presentation.scoreRecorder.Ball
 import org.example.bails.presentation.scoreRecorder.BatterStats
 import org.example.bails.presentation.scoreRecorder.Bowler
@@ -21,22 +23,29 @@ class ScoreBoardScreenViewModel(
 ): ViewModel() {
 
     val matchId: Long? = savedStateHandle["matchId"]
+    private val repository = MatchRepository()
 
     var state by mutableStateOf<ScoreBoardScreenState>(ScoreBoardScreenState.Loading)
 
     init {
-        println("ScoreBoardScreeViewModel: matchId: $matchId")
-        matchId?.let { loadMatchSummary(matchId) }
+        println("ScoreBoardScreenViewModel: matchId: $matchId")
+        matchId?.let { loadMatchSummary(it) }
     }
 
     private fun loadMatchSummary(matchId: Long) {
-        val matchSummary = BailsDb.getMatchSummary(matchId)
-        println("match summary: $matchSummary")
-        matchSummary?.let {
-            val firstInnings = matchSummary.first.toInningsSummary()
-            val secondInnings = matchSummary.second.toInningsSummary()
-            println("innings summary: $firstInnings")
-            state = ScoreBoardScreenState.Success(firstInnings, secondInnings)
+        viewModelScope.launch {
+            val matchSummary = repository.getMatchSummary(matchId)
+            println("match summary: $matchSummary")
+            matchSummary?.let {
+                val firstInnings = it.firstInning.toInningsSummary()
+                val secondInnings = it.secondInning.toInningsSummary()
+                state = ScoreBoardScreenState.Success(
+                    firstInnings = firstInnings,
+                    secondInnings = secondInnings,
+                    team1Name = it.team1Name,
+                    team2Name = it.team2Name
+                )
+            }
         }
     }
 }

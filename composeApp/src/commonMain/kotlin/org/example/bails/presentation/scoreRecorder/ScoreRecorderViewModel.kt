@@ -5,9 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
-import org.example.bails.data.BailsDb
 import org.example.bails.data.Inning
+import org.example.bails.data.MatchRepository
 import org.example.bails.util.isValidBall
 import org.example.bails.util.roundToDecimals
 
@@ -16,18 +18,29 @@ class ScoreRecorderViewModel(
 ): ViewModel() {
 
     private val numberOfOvers = savedStateHandle["numberOfOvers"] ?: 0
+    private val teamName = (savedStateHandle["teamName"] as? String).takeIf { it?.isNotBlank() == true } ?: if (savedStateHandle.get<Long>("matchId") == null) "Team 1" else "Team 2"
     private val strikerName = (savedStateHandle["strikerName"] as? String).takeIf { it?.isNotBlank() == true } ?: "Unnamed player"
     private val nonStrikerName = (savedStateHandle["nonStrikerName"] as? String).takeIf { it?.isNotBlank() == true } ?: "Unnamed player"
     private val bowlerName = (savedStateHandle["bowlerName"] as? String).takeIf { it?.isNotBlank() == true } ?: "Unnamed Player"
     val matchId = savedStateHandle["matchId"] ?: Clock.System.now().toEpochMilliseconds()
     val isFirstInning = savedStateHandle.get<Long>("matchId") == null
 
+    private val repository = MatchRepository()
+
     init {
-        if (isFirstInning) {
-            BailsDb.setTotalOvers(matchId, numberOfOvers)
+        viewModelScope.launch {
+            if (isFirstInning) {
+                repository.createMatch(matchId, numberOfOvers, teamName)
+            } else {
+                // Store team 2 name and load target score
+                repository.updateTeam2Name(matchId, teamName)
+                val matchSummary = repository.getMatchSummary(matchId)
+                val target = matchSummary?.firstInning?.overs?.let { getTotalRuns(it) + 1 } ?: 0
+                if (target > 0) {
+                    state = state.asInningsRunning().copy(targetScore = target)
+                }
+            }
         }
-        val matchSummary = BailsDb.getMatchSummary(matchId)
-        println(">>> ScoreRecorderVM init: matchId=$matchId, isFirstInning=$isFirstInning, matchSummary=${matchSummary != null}, firstInningsOvers=${matchSummary?.first?.overs?.size}, targetScore=${matchSummary?.first?.overs?.let { getTotalRuns(it) + 1 } ?: 0}")
     }
 
     var previousBallState: ScoreRecorderScreenState.InningsRunning? = null
@@ -59,7 +72,7 @@ class ScoreRecorderViewModel(
                 nonStrikerStats = BatterStats(batter = PlainBatter(id = initialNonStriker.id, nonStrikerName))
             ),
             isFirstInning = isFirstInning,
-            targetScore = BailsDb.getMatchSummary(matchId)?.first?.overs?.let { getTotalRuns(it) + 1 } ?: 0,
+            targetScore = 0,
         )
     )
     private val battersHistory = mutableListOf<Batter>()
@@ -93,7 +106,6 @@ class ScoreRecorderViewModel(
                 } else {
                     isStrikerOut = false
                 }
-//                battersHistory.add(outPlayer)
 
                 state = state.asInningsRunning().copy(
                     wickets = state.asInningsRunning().wickets + 1,
@@ -112,10 +124,14 @@ class ScoreRecorderViewModel(
             }
         }
 
-        BailsDb.updateMatchSummary(matchId, isFirstInning, Inning(state.asInningsRunning().allOvers))
+        // Persist to database
+        viewModelScope.launch {
+            repository.updateInnings(matchId, isFirstInning, Inning(state.asInningsRunning().allOvers))
+        }
 
         if (!state.asInningsRunning().isFirstInning && state.asInningsRunning().targetScore > 0 && state.asInningsRunning().score >= state.asInningsRunning().targetScore) {
             state = state.asInningsRunning().copy(doesWonMatch = true)
+            viewModelScope.launch { repository.markMatchCompleted(matchId) }
         } else if (isStrikeChanged) {
             state = state.asInningsRunning().copy(
                 currentPlainStriker = state.asInningsRunning().currentPlainNonStriker,
@@ -135,6 +151,9 @@ class ScoreRecorderViewModel(
             state = state.asInningsRunning().copy(
                 isInningsCompleted = true
             )
+            if (!isFirstInning) {
+                viewModelScope.launch { repository.markMatchCompleted(matchId) }
+            }
         }
     }
 
@@ -198,6 +217,10 @@ class ScoreRecorderViewModel(
         }
         return previousBallState?.let { previousState ->
             state = previousState
+            // Persist the undone state
+            viewModelScope.launch {
+                repository.updateInnings(matchId, isFirstInning, Inning(previousState.allOvers))
+            }
             true
         } ?: run { false }
     }

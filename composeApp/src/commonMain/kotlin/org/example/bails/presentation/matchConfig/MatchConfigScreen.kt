@@ -33,17 +33,22 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import org.example.bails.data.BailsDb
+import org.example.bails.data.MatchRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MatchConfigScreen(
     matchId: Long? = null,
-    onStartMatch: (Int, strikerName: String, nonStrikerName: String, bowlerName: String) -> Unit,
+    onStartMatch: (Int, teamName: String, strikerName: String, nonStrikerName: String, bowlerName: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isSecondInnings = matchId != null
-    val savedOvers = matchId?.let { BailsDb.getTotalOvers(it) }
+    val repository = remember { MatchRepository() }
+    var savedOvers: Int? by remember { mutableStateOf(null) }
+
+    LaunchedEffect(matchId) {
+        savedOvers = matchId?.let { repository.getTotalOvers(it) }
+    }
 
     Scaffold(
         topBar = {
@@ -61,11 +66,18 @@ fun MatchConfigScreen(
         }
     ) { padding ->
 
-        var numberOfOvers: String? by remember { mutableStateOf(savedOvers?.toString()) }
+        var numberOfOvers: String? by remember { mutableStateOf(null) }
+        var teamName: String by remember { mutableStateOf(if (isSecondInnings) "Team 2" else "Team 1") }
         var strikerName: String by remember { mutableStateOf("") }
         var nonStrikerName: String by remember { mutableStateOf("") }
         var bowlerName: String by remember { mutableStateOf("") }
         val focusRequester = remember { FocusRequester() }
+
+        LaunchedEffect(savedOvers) {
+            if (savedOvers != null && numberOfOvers == null) {
+                numberOfOvers = savedOvers.toString()
+            }
+        }
 
         LaunchedEffect(Unit) {
             focusRequester.requestFocus()
@@ -79,6 +91,13 @@ fun MatchConfigScreen(
         ) {
             val keyboardController = LocalSoftwareKeyboardController.current
 
+            TextFormField(
+                title = "Team Name",
+                value = teamName,
+                onValueChange = { teamName = it },
+                placeholder = if (isSecondInnings) "e.g., Team 2" else "e.g., Team 1",
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
             NumberFormField(
                 title = "Overs",
                 value = numberOfOvers ?: "",
@@ -116,14 +135,14 @@ fun MatchConfigScreen(
                 imeAction = ImeAction.Go,
                 onGo = {
                     keyboardController?.hide()
-                    onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, strikerName, nonStrikerName, bowlerName)
+                    onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, teamName, strikerName, nonStrikerName, bowlerName)
                 },
             )
             Spacer(modifier = Modifier.height(12.dp))
             Button(
                 onClick = {
                     keyboardController?.hide()
-                    onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, strikerName, nonStrikerName, bowlerName)
+                    onStartMatch(numberOfOvers?.toIntOrNull() ?: 0, teamName, strikerName, nonStrikerName, bowlerName)
                 },
                 enabled = numberOfOvers?.toIntOrNull() != null && numberOfOvers!!.toIntOrNull()!! > 0,
                 shape = RoundedCornerShape(12.dp),
